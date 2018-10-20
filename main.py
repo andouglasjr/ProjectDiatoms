@@ -9,7 +9,7 @@ from DataLogger import DataLogger
 data_log = DataLogger()
 data_log.log("Init training code...", 'l')
 
-list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1']
+list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1', 'test_diatoms_3_class_simulate_1']
 #list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate']
 
 data_transforms_to_compute_mean = {
@@ -17,6 +17,9 @@ data_transforms_to_compute_mean = {
         transforms.ToTensor(),
     ]),
     list_of_name_folders[1]: transforms.Compose([
+        transforms.ToTensor(),
+    ]),
+    list_of_name_folders[2]: transforms.Compose([
         transforms.ToTensor(),
     ])
 }
@@ -62,6 +65,14 @@ data_transforms = {
         transforms.Normalize(mean, std)
         #transforms.Normalize([0.496], [0.07])
     ])
+     list_of_name_folders[2]: transforms.Compose([
+        transforms.Resize(256),
+        transforms.CenterCrop(224),
+        #transforms.Grayscale(1),
+        transforms.ToTensor(),
+        transforms.Normalize(mean, std)
+        #transforms.Normalize([0.496], [0.07])
+    ])
 }
 
 data_log.log("Starting training", 'l')
@@ -94,5 +105,10 @@ for t in test_names:
     model = model_ft.get_model()
     best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
     model_ft.save_model(best_model, 'results/' + t + '.pt')
+    
+    #Analyzing Results
+    data_log.log("Analyzing Results to {}".format(t), 'l')
+    results, cont_correct, cont_incorrect = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2])
+    data.save_results(results, cont_correct, cont_incorrect, log)
 
 data_log.log("Close Log", 'l')

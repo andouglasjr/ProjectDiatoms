@@ -53,14 +53,7 @@ class DataUtils():
     def save_data_training(self, phase, content, close = False):
         self.results_files[phase].write('{}\n'.format(content))
         if close:
-            self.results_files[phase].close()
-    
-    def log(self, content, close = False):
-        print(content)
-        file_log.write(content)
-        if close:
-            file_log.close()
-        
+            self.results_files[phase].close()    
     
     def set_normalization(self, tensor, mean = [0.496, 0.496, 0.496], std = [0.07, 0.07, 0.07]):
         normalization = transforms.Normalize(mean, std)
@@ -81,8 +74,22 @@ class DataUtils():
                 plt.title(title)
             plt.pause(0.001)  # pause a bit so that plots are updated
         else:
-            print("Inp is None!")
+            print("Inp is None!")       
             
+    def save_results(self, results, correct, incorrect, log):
+        log.log("Confusion Matrix Analyzes", 'l')
+        results = results.to("cpu", torch.int32)
+        log.log("Number Total of Test: {}".format(np.sum(results.numpy())), 'v')
+        acc = (correct/(correct+incorrect))*100
+        log.log("Accuracy: {}, Correct Number: {}, Incorrect Number: {}".format(acc, correct, incorrect), 'v')
+        log.log("{}".format(results), 'v')
+        log.log("Diagonal Sum: {}".format(np.trace(results)), 'v')
+        log.log("Classes confusions:", 'l')
+        for i in range(50):
+            for j in range(50):
+                if(results[i,j] > 1 and i != j):
+                    log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i+1, j+1, results[i,j].tolist()), 'e')      
+                    
     def compute_mean(self, image_datasets, name_dir):
         pop_mean = []
         pop_std0 = []

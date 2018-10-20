@@ -70,8 +70,42 @@ class ModelClass():
     def save_model(self, model, name_model):
         torch.save(model, name_model)
         
+    def load_model(self, name_model, localization):
+        if(localization == 'cpu'):
+            return torch.load(name_model, map_location=lambda storage, loc: storage)
+        else:
+            return torch.load(name_model)
+        
     def get_device(self):
         return self.device
+    
+    def confusion_matrix(self, model, dataloaders, folder_name):
+        was_training = model.training
+        model.eval()
+        correct = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
+        incorrect = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
+        results = torch.zeros([50, 50], dtype=torch.int32, device = self.device)
+        cont_correct = 0
+        cont_incorrect = 0
+
+        with torch.no_grad():      
+            for i, (inputs, labels) in enumerate(dataloaders[folder_name]):
+                inputs = inputs.to(self.device)
+                labels = labels.to(self.device)
+
+                outputs = model(inputs)
+                _, preds = torch.max(outputs, 1)
+
+                for k in range(labels.size()[0]):
+                    if(preds[k] == labels[k]):
+                        results[preds[k],preds[k]] +=1
+                        correct[0,preds[k]] += 1
+                        cont_correct += 1
+                    else:
+                        results[preds[k],labels[k]] +=1
+                        incorrect[0,preds[k]] += 1
+                        cont_incorrect += 1
+        return results, cont_correct, cont_incorrect
     
     def train_model(self, model, dataloaders, params, dataset_sizes, data):
         since = time.time()
