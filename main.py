@@ -1,8 +1,45 @@
+import os
+import torch
 from DataUtils import DataUtils
 from ModelClass import ModelClass
 from torchvision import datasets, models, transforms
-import os
-list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1']
+from DataLogger import DataLogger
+
+#Init Log
+data_log = DataLogger()
+data_log.log("Init training code...", 'l')
+
+#list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1']
+list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate']
+
+data_transforms_to_compute_mean = {
+    list_of_name_folders[0]: transforms.Compose([
+        transforms.ToTensor(),
+    ]),
+    list_of_name_folders[1]: transforms.Compose([
+        transforms.ToTensor(),
+    ])
+}
+
+
+#------------------------------------------------
+#Data Loaders 
+#------------------------------------------------
+#list_of_name_folders = ['train_diatoms_3_class','val_diatoms_3_class']
+data_dir = '../data'
+
+model_name='Resnet50'
+test_names = ['Resnet18','Resnet50']
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+data_log.log("Computing dataset train mean and std...", 'l')
+#Computing the Mean and Std of trains dataset
+data_mean = DataUtils(list_of_name_folders, data_dir, data_transforms_to_compute_mean, net_name = '', device = device)
+image_datasets_mean = data_mean.get_all_image_datasets()
+mean, std = data_mean.compute_mean(image_datasets_mean, list_of_name_folders[0])
+data_log.log("Mean: {}, Std: {}".format(mean, std), 'v')
+
+#Tranformation for Trainning
 #------------------------------------------------
 #Data Augmentation
 #------------------------------------------------
@@ -14,7 +51,7 @@ data_transforms = {
         transforms.RandomRotation(180),
         #transforms.Grayscale(1),
         transforms.ToTensor(),
-        transforms.Normalize([0.5017087, 0.5017087, 0.5017087], [0.08929635, 0.08929635, 0.08929635])
+        transforms.Normalize(mean, std)
         #transforms.Normalize([0.493], [0.085])
     ]),
     list_of_name_folders[1]: transforms.Compose([
@@ -22,27 +59,20 @@ data_transforms = {
         transforms.CenterCrop(224),
         #transforms.Grayscale(1),
         transforms.ToTensor(),
-        transforms.Normalize([0.5017087, 0.5017087, 0.5017087], [0.08929635, 0.08929635, 0.08929635])
+        transforms.Normalize(mean, std)
         #transforms.Normalize([0.496], [0.07])
     ])
 }
 
-#------------------------------------------------
-#Data Loaders 
-#------------------------------------------------
-#list_of_name_folders = ['train_diatoms_3_class','val_diatoms_3_class']
-data_dir = '../data'
-
-model_name='Resnet50'
-
-test_names = ['Resnet18','Resnet50']
-
+data_log.log("Starting training", 'l')
 for t in test_names:
 
-    data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = t)
+    data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = t, device = device)
     image_datasets = data.get_all_image_datasets()
     dataloaders = data.load_data(image_datasets)
     dataset_size = data.get_dataset_size()
+    
+    data_log.log("DataSet Size: {}".format(dataset_size), 'v')
 
     #Prameters of training
     params = {
@@ -53,10 +83,16 @@ for t in test_names:
         'set_criterion' : True,
         'num_epochs' : 8
     }
+    
+    data_log.log("Network Architeture: {}".format(t), 'l')
+    data_log.log("Parameters:", 'l')
+    data_log.log("Number of Epochs: {}".format(params['num_epochs']), 'e')
+    data_log.log("Learning Rate: {}".format(params['lr']), 'e')
 
 
-    model_ft = ModelClass(model_name=t, folder_names = list_of_name_folders)
+    model_ft = ModelClass(model_name=t, folder_names = list_of_name_folders, log = data_log)
     model = model_ft.get_model()
-    best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-    model_ft.save_model(best_model, 'results/' + t + '.pt')
+    #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+    #model_ft.save_model(best_model, 'results/' + t + '.pt')
 
+data_log.log("Close Log", 'l')

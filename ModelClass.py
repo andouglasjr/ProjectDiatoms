@@ -11,7 +11,7 @@ import copy
 
 class ModelClass():
     
-    def __init__(self, model_name="", num_classes = 50, feature_extract=False, use_pretrained=True, folder_names = None, device = None):
+    def __init__(self, model_name="", num_classes = 50, feature_extract=False, use_pretrained=True, folder_names = None, device = None, log = None):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
@@ -27,6 +27,7 @@ class ModelClass():
             self.folder_names = folder_names
         
         self.model_ft = None
+        self.log = log
         input_size = 0
         
         if model_name == "Resnet18":
@@ -95,8 +96,8 @@ class ModelClass():
             self.get_criterion()
         
         for epoch in range(num_epochs):
-            print('Epoch {}/{}'.format(epoch, num_epochs - 1))
-            print('-' * 10)
+            self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
+            self.log.log('-' * 10, 'l')
 
             # Each epoch has a training and validation phase
             for phase in self.folder_names:
@@ -147,8 +148,8 @@ class ModelClass():
                 if(epoch == num_epochs - 1):
                     close = True
                 data.save_data_training(phase, content, close)
-                print('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                    phase, epoch_loss, epoch_acc))
+                self.log.log('{} Loss: {:.4f} Acc: {:.4f}'.format(
+                    phase, epoch_loss, epoch_acc), 'v')
 
                 # deep copy the model
                 if phase ==  self.folder_names[1] and epoch_acc > best_acc:
@@ -158,9 +159,9 @@ class ModelClass():
             print()
 
         time_elapsed = time.time() - since
-        print('Training complete in {:.0f}m {:.0f}s'.format(
-            time_elapsed // 60, time_elapsed % 60))
-        print('Best val Acc: {:4f}'.format(best_acc))
+        self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
+            time_elapsed // 60, time_elapsed % 60), 'v')
+        self.log.log('Best val Acc: {:4f}'.format(best_acc), 'v')
 
         # load best model weights
         model.load_state_dict(best_model_wts)

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 64, shuffle = True, num_workers = 4, net_name=''):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 64, shuffle = True, num_workers = 4, net_name='', device=None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
@@ -23,12 +23,17 @@ class DataUtils():
         self.shuffle = shuffle
         self.num_workers = num_workers
         
+        self.device = device
+        
         #init results files
         self.net_name = net_name
         str_name_file = self.net_name 
-        file_train = open('results/'+self.net_name+'_data_train.dat','w')
-        file_val = open('results/'+self.net_name+'_data_val.dat','w')
-        self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
+        if not str_name_file:
+            file_train = open('results/'+self.net_name+'_data_train.dat','w')
+            file_val = open('results/'+self.net_name+'_data_val.dat','w')
+            self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
+        
+        
         
     def get_all_image_datasets(self):
         return self.image_datasets
@@ -49,6 +54,13 @@ class DataUtils():
         self.results_files[phase].write('{}\n'.format(content))
         if close:
             self.results_files[phase].close()
+    
+    def log(self, content, close = False):
+        print(content)
+        file_log.write(content)
+        if close:
+            file_log.close()
+        
     
     def set_normalization(self, tensor, mean = [0.496, 0.496, 0.496], std = [0.07, 0.07, 0.07]):
         normalization = transforms.Normalize(mean, std)
@@ -75,13 +87,11 @@ class DataUtils():
         pop_mean = []
         pop_std0 = []
         pop_std1 = []
+        device = self.device
         toTensor = transforms.ToTensor()
         #image_datasets = datasets.ImageFolder(os.path.join(data_dir, name_dir))
-        for x in range(len(image_datasets)):
-            img = image_datasets[name_dir][0]
-            toTensor(img[0])
-        
-        dataloaders =  {name_dir: torch.utils.data.DataLoader(image_datasets, 
+
+        dataloaders =  {name_dir: torch.utils.data.DataLoader(image_datasets[name_dir], 
                                                    batch_size = self.batch_size, 
                                                    shuffle = self.shuffle, 
                                                    num_workers = self.num_workers)}
@@ -105,7 +115,8 @@ class DataUtils():
         pop_std0 = np.array(pop_std0).mean(axis=0)
         pop_std1 = np.array(pop_std1).mean(axis=0)
 
-        print("Mean: $f, Std0: $f, Std1: $f", (pop_mean,pop_std0,pop_std1))
+        #print("Mean: $f, Std0: $f, Std1: $f", (pop_mean,pop_std0,pop_std1))
+        return pop_mean, pop_std0
         
 
     
