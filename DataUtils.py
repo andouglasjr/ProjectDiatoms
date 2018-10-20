@@ -27,8 +27,8 @@ class DataUtils():
         
         #init results files
         self.net_name = net_name
-        str_name_file = self.net_name 
-        if not str_name_file:
+        
+        if not self.net_name=='':
             file_train = open('results/'+self.net_name+'_data_train.dat','w')
             file_val = open('results/'+self.net_name+'_data_val.dat','w')
             self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
@@ -116,7 +116,7 @@ class DataUtils():
         pop_std1 = np.array(pop_std1).mean(axis=0)
 
         #print("Mean: $f, Std0: $f, Std1: $f", (pop_mean,pop_std0,pop_std1))
-        return pop_mean, pop_std0
+        return torch.from_numpy(pop_mean), torch.from_numpy(pop_std0)
         
 
     

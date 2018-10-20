@@ -9,8 +9,8 @@ from DataLogger import DataLogger
 data_log = DataLogger()
 data_log.log("Init training code...", 'l')
 
-#list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1']
-list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate']
+list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1']
+#list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate']
 
 data_transforms_to_compute_mean = {
     list_of_name_folders[0]: transforms.Compose([
@@ -92,7 +92,7 @@ for t in test_names:
 
     model_ft = ModelClass(model_name=t, folder_names = list_of_name_folders, log = data_log)
     model = model_ft.get_model()
-    #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-    #model_ft.save_model(best_model, 'results/' + t + '.pt')
+    best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+    model_ft.save_model(best_model, 'results/' + t + '.pt')
 
 data_log.log("Close Log", 'l')
