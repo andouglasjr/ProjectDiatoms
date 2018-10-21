@@ -4,13 +4,16 @@ from DataUtils import DataUtils
 from ModelClass import ModelClass
 from torchvision import datasets, models, transforms
 from DataLogger import DataLogger
+from ImageVisualizer import ImageVisualizer
+import matplotlib.pyplot as plt
+import matplotlib
 
 #Init Log
 data_log = DataLogger()
 data_log.log("Init training code...", 'l')
-
-list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1', 'test_diatoms_3_class']
-#list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate']
+#plt.ion()
+#list_of_name_folders = ['train_diatoms_3_class_simulate_1','val_diatoms_3_class_simulate_1', 'test_diatoms_3_class']
+list_of_name_folders = ['test_diatoms_3_class','test_diatoms_3_class_simulate','test_diatoms_3_class']
 
 data_transforms_to_compute_mean = {
     list_of_name_folders[0]: transforms.Compose([
@@ -39,7 +42,8 @@ data_log.log("Computing dataset train mean and std...", 'l')
 #Computing the Mean and Std of trains dataset
 data_mean = DataUtils(list_of_name_folders, data_dir, data_transforms_to_compute_mean, net_name = '', device = device)
 image_datasets_mean = data_mean.get_all_image_datasets()
-mean, std = data_mean.compute_mean(image_datasets_mean, list_of_name_folders[0])
+#mean, std = data_mean.compute_mean(image_datasets_mean, list_of_name_folders[0])
+mean, std = [0.5,0.5,0.5],[0.08,0.08,0.08]
 data_log.log("Mean: {}, Std: {}".format(mean, std), 'v')
 
 #Tranformation for Trainning
@@ -107,9 +111,22 @@ for t in test_names:
     #model_ft.save_model(best_model, 'results/' + t + '.pt')
     
     #Analyzing Results
-    data_log.log("Analyzing Results to {}".format(t), 'l')
-    best_model = model_ft.load_model('results/Resnet18.pt', '')
-    results, cont_correct, cont_incorrect = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2])
-    data.save_results(results, cont_correct, cont_incorrect, data_log)
-
+    #data_log.log("Analyzing Results to {}".format(t), 'l')
+    best_model = model_ft.load_model('results/Resnet18.pt', 'cpu')
+    #results, cont_correct, cont_incorrect = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2])
+    #data.save_results(results, cont_correct, cont_incorrect, data_log)
+    
+    #Visualizing Results
+    visual = ImageVisualizer(list_of_name_folders, mean, std)
+    #visual.show_one_image_tensor(image_datasets[list_of_name_folders[0]][0][0], title='Test', isToShow=True, folder_name=list_of_name_folders[0])
+    #visual.visualize_model(best_model, dataloaders, list_of_name_folders[2], image_datasets, 20)
+    predicts_wrong = [0]*8
+    for i in range(8):
+        img = image_datasets[list_of_name_folders[0]][0][0]
+        predicts_wrong[i] = {'class' : 27, 'image': img}
+    class_correct = 41
+    
+    visual.visualize_misclassification(predicts_wrong, class_correct)
+    
+plt.show()
 data_log.log("Close Log", 'l')

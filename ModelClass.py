@@ -97,6 +97,7 @@ class ModelClass():
                 _, preds = torch.max(outputs, 1)
 
                 for k in range(labels.size()[0]):
+                    correct_class = labels[k]
                     if(preds[k] == labels[k]):
                         results[preds[k],preds[k]] +=1
                         correct[0,preds[k]] += 1
@@ -105,6 +106,7 @@ class ModelClass():
                         results[preds[k],labels[k]] +=1
                         incorrect[0,preds[k]] += 1
                         cont_incorrect += 1
+                        
         return results, cont_correct, cont_incorrect
     
     def train_model(self, model, dataloaders, params, dataset_sizes, data):
