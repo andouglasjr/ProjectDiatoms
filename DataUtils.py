@@ -88,7 +88,7 @@ class DataUtils():
         for i in range(50):
             for j in range(50):
                 if(results[i,j] > 1 and i != j):
-                    log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i+1, j+1, results[i,j].tolist()), 'e')      
+                    log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i, j, results[i,j].tolist()), 'e')      
                     
     def compute_mean(self, image_datasets, name_dir):
         pop_mean = []

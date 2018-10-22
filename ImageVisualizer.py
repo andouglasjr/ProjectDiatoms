@@ -70,7 +70,7 @@ class ImageVisualizer:
         was_training = model.training
         model.eval()
         images_so_far = 0
-        fig = plt.figure()
+        
         class_names = image_datasets[folder_name].classes
         
         diatoms_class = DiatomsDataset('train_', '../data', self.data_transforms)
@@ -111,14 +111,20 @@ class ImageVisualizer:
         
     def visualize_misclassification(self, predicts_wrong, class_correct):
         images_so_far = 0
+        
         fig = plt.figure()
         #class_names = image_datasets[folder_name].classes
-
+        #class_correct = [int(class_names[l.item()]) for l in labels]
+        
         diatoms_class = DiatomsDataset('train_', '../data', self.data_transforms)
-        img_class_correct = diatoms_class[class_correct]['image']
-        diatoms_class_correct = diatoms_class[class_correct]['diatoms']
+        for i in range(len(diatoms_class)):
+            if(diatoms_class[i]['diatoms'] == class_correct):
+                img_class_correct = diatoms_class[i]['image']
+                diatoms_class_correct = diatoms_class[i]['diatoms']
+                break
 
-        num_images = len(predicts_wrong) + 1
+        num_images = len(predicts_wrong)
+        #print(num_images)
 
         images_so_far += 1
         ax = plt.subplot(num_images//2, 4, images_so_far)
@@ -126,12 +132,11 @@ class ImageVisualizer:
         ax.set_title('Correct Class: {}'.format(diatoms_class_correct))
         self.imshow(img_class_correct)
 
-        for j in range(num_images-1):
+        for j in range(1,num_images):
             images_so_far += 1
             ax = plt.subplot(num_images//2, 4, images_so_far)
             ax.axis('off')
-            ax.set_title('Predict Incorrect Class: {}'.format(predicts_wrong[j]['class']))
-            print(type(predicts_wrong[j]['image']))
+            ax.set_title('Predict: {}'.format(predicts_wrong[j]['class']))
             self.imshow(predicts_wrong[j]['image'], folder_name = 'train_')
 
         

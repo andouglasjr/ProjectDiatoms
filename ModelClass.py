@@ -79,12 +79,14 @@ class ModelClass():
     def get_device(self):
         return self.device
     
-    def confusion_matrix(self, model, dataloaders, folder_name):
+    def confusion_matrix(self, model, dataloaders, folder_name, data):
         was_training = model.training
         model.eval()
         correct = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
         incorrect = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
         results = torch.zeros([50, 50], dtype=torch.int32, device = self.device)
+        image_incorrect = [{}]
+        
         cont_correct = 0
         cont_incorrect = 0
 
@@ -92,12 +94,20 @@ class ModelClass():
             for i, (inputs, labels) in enumerate(dataloaders[folder_name]):
                 inputs = inputs.to(self.device)
                 labels = labels.to(self.device)
+                
+                class_names = data.get_all_image_datasets()[folder_name].classes
+                
+                labels = [int(class_names[l.item()]) for l in labels]
+                correct_class = np.array(list(set(np.array(labels))))
 
                 outputs = model(inputs)
                 _, preds = torch.max(outputs, 1)
-
-                for k in range(labels.size()[0]):
-                    correct_class = labels[k]
+                
+                preds = [int(class_names[l.item()]) for l in preds]
+                #print(preds)
+                                  
+                for k in range(len(labels)):
+                    
                     if(preds[k] == labels[k]):
                         results[preds[k],preds[k]] +=1
                         correct[0,preds[k]] += 1
@@ -105,9 +115,27 @@ class ModelClass():
                     else:
                         results[preds[k],labels[k]] +=1
                         incorrect[0,preds[k]] += 1
+                        image_incorrect.append({'class' : preds[k],
+                                                'correct_class': labels[k], 
+                                                'image': inputs.data[k]})
                         cont_incorrect += 1
                         
-        return results, cont_correct, cont_incorrect
+                if(i>0):
+                    correct_class = self.update_correct_class(correct_class_old, correct_class)
+                correct_class_old = correct_class
+
+        return results, cont_correct, cont_incorrect, image_incorrect, correct_class
+    
+    def update_correct_class(self, l1,l2):
+        if ((l1 == l2).all()):
+            return l1
+        if(len(l2)>len(l1)):
+            l1_ = l2
+            l2_ = l1
+        l1_ = set(l1)
+        l2_ = set(l2)
+        new_list = l1 + list(l2_ - l1_)
+        return sorted(new_list) 
     
     def train_model(self, model, dataloaders, params, dataset_sizes, data):
         since = time.time()
