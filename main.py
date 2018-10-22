@@ -107,8 +107,8 @@ for t in test_names:
 
     model_ft = ModelClass(model_name=t, folder_names = list_of_name_folders, log = data_log)
     model = model_ft.get_model()
-    best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-    model_ft.save_model(best_model, 'results/' + t + '.pt')
+    #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+    #model_ft.save_model(best_model, 'results/' + t + '.pt')
     
     #Analyzing Results
     data_log.log("Analyzing Results to {}".format(t), 'l')
@@ -131,7 +131,7 @@ for t in test_names:
                     predicts_wrong = [{}]
         if(len(predicts_wrong)>1):
             visual.visualize_misclassification(predicts_wrong, y)
-    break
+
     
 plt.show()
 data_log.log("Close Log", 'l')

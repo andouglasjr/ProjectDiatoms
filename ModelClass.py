@@ -92,8 +92,8 @@ class ModelClass():
 
         with torch.no_grad():      
             for i, (inputs, labels) in enumerate(dataloaders[folder_name]):
-                inputs = inputs.to(self.device)
-                labels = labels.to(self.device)
+                #inputs = inputs.to(self.device)
+                #labels = labels.to(self.device)
                 
                 class_names = data.get_all_image_datasets()[folder_name].classes
                 
@@ -164,7 +164,7 @@ class ModelClass():
             self.log.log('-' * 10, 'l')
 
             # Each epoch has a training and validation phase
-            for phase in self.folder_names:
+            for phase in self.folder_names[:2]:
                 if phase ==  self.folder_names[0]:
                     scheduler.step()
                     model.train()  # Set model to training mode
