@@ -65,6 +65,20 @@ class ImageVisualizer:
         fig = plt.figure()
         self.imshow(inputs, title, isToShow, folder_name)
         
+    def call_visualize_misclassifications(self, correct_class, visual, image_incorrect):
+        for y in correct_class:
+            predicts_wrong = [{}]
+            for x in range(1,len(image_incorrect)):
+                if(image_incorrect[x]['correct_class'] == y):
+                    predicts_wrong.append(image_incorrect[x])
+                    if(len(predicts_wrong) > 7):
+                        visual.visualize_misclassification(predicts_wrong, y)
+                        predicts_wrong = [{}]
+            if(len(predicts_wrong)>1):
+                visual.visualize_misclassification(predicts_wrong, y)
+
+        plt.show()
+        
     
     def visualize_model(self, model, dataloaders, folder_name, image_datasets, num_images=6):
         was_training = model.training

@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 64, shuffle = True, num_workers = 4, net_name='', device=None):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 4, net_name='', device=None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
@@ -26,13 +26,7 @@ class DataUtils():
         self.device = device
         
         #init results files
-        self.net_name = net_name
-        
-        if not self.net_name=='':
-            file_train = open('results/'+self.net_name+'_data_train.dat','w')
-            file_val = open('results/'+self.net_name+'_data_val.dat','w')
-            self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
-        
+        self.net_name = net_name       
         
         
     def get_all_image_datasets(self):
@@ -49,6 +43,12 @@ class DataUtils():
                                                       shuffle = self.shuffle, num_workers = self.num_workers) 
                for x in self.list_of_name_folders}
         return dataloaders
+    
+    def open_file_data(self, net_name, lr):
+            file_train = open('results/'+net_name+'_'+str(lr)+'_data_train.dat','w')
+            file_val = open('results/'+net_name+'_'+str(lr)+'_data_val.dat','w')
+            self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
+            
     
     def save_data_training(self, phase, content, close = False):
         self.results_files[phase].write('{}\n'.format(content))

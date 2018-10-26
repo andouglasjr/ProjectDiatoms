@@ -142,7 +142,7 @@ class ModelClass():
         isKfoldMethod = False
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
-        model = model.to(self.get_device())
+        
         criterion = self.get_criterion()
         #Get parameters of training
         lr = params['lr']
@@ -151,6 +151,7 @@ class ModelClass():
         step_size = params['step_size']
         gamma = params['gamma']
         set_criterion = params['set_criterion']
+        net_name = params['net_name']
         
         #Setting parameters of training
         optimizer = self.get_optimization(model, lr, momentum)
@@ -158,7 +159,17 @@ class ModelClass():
         
         if set_criterion:
             self.get_criterion()
-        
+            
+        #Using more than one GPU
+        ######################################
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            #dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            model = nn.DataParallel(model)
+
+        model = model.to(self.get_device())
+        #####################################
+        data.open_file_data(net_name, lr)
         for epoch in range(num_epochs):
             self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
             self.log.log('-' * 10, 'l')
