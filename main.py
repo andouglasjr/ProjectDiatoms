@@ -93,8 +93,9 @@ for t in ['Resnet50']:
     
     data_log.log("DataSet Size: {}".format(dataset_size), 'v')
     
-    #for count in range(10):
-    for lr in [3.118464108103618e-05]:
+    for count in range(1):
+    #for num_of_layers in range(3,60):
+        lr = 3.118464108103618e-05
         #lr =2*10**random.uniform(-5,-5)
         #lr =0.000031184
 
@@ -115,12 +116,14 @@ for t in ['Resnet50']:
         data_log.log("Number of Epochs: {}".format(params['num_epochs']), 'e')
         data_log.log("Learning Rate: {}".format(params['lr']), 'e')
 
-
-        model_ft = ModelClass(model_name=t, folder_names = list_of_name_folders, log = data_log)
+        feature_extract=True 
+        num_of_layers=9
+        
+        model_ft = ModelClass(model_name=t, feature_extract=feature_extract, num_of_layers=num_of_layers, folder_names = list_of_name_folders, log = data_log)
         model = model_ft.get_model()
         
-        #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-        #model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
+        best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+        model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
 
         #Analyzing Results
         data_log.log("Analyzing Results to {}".format(t), 'l')
@@ -133,5 +136,5 @@ for t in ['Resnet50']:
 
         data.save_results(results,correct,incorrect, data_log)
 
-        visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
+        #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
     data_log.log("Close Log", 'l')

@@ -11,11 +11,12 @@ import copy
 
 class ModelClass():
     
-    def __init__(self, model_name="", num_classes = 50, feature_extract=False, use_pretrained=True, folder_names = None, device = None, log = None):
+    def __init__(self, model_name="", num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
         self.use_pretrained = use_pretrained
+        self.num_of_layers = num_of_layers
         if(device == None):
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -33,7 +34,7 @@ class ModelClass():
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
             self.model_ft = models.resnet18(pretrained=use_pretrained)
-            self.set_parameter_requires_grad(self.model_ft, feature_extract)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
             input_size = 244
@@ -41,7 +42,7 @@ class ModelClass():
         elif model_name == "Resnet50":
             print("[!] Using Resnet50 model")
             self.model_ft = models.resnet18(pretrained=use_pretrained)
-            self.set_parameter_requires_grad(self.model_ft, feature_extract)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
             input_size = 244
@@ -53,10 +54,24 @@ class ModelClass():
     def get_model(self):
         return self.model_ft
     
-    def set_parameter_requires_grad(self, model, feature_extracting):
+    def set_num_of_layer(self, num_of_layers):
+        self.num_of_layers = num_of_layers
+    
+    def get_num_of_layers(self):
+        return self.num_of_layers
+    
+    def set_parameter_requires_grad(self, model, feature_extracting):   
         if feature_extracting:
+            cont = 0
             for param in model.parameters():
-                param.requires_grad = False
+                cont = cont + 1
+            interator = 0
+            print('Blocking '+str(self.num_of_layers) +'layers')
+            for param in model.parameters():
+                #print(cont - interator)
+                if (cont - interator >= self.num_of_layers):
+                    param.requires_grad = False
+                interator=interator+1
     
     def get_criterion(self):
         return nn.CrossEntropyLoss()      
