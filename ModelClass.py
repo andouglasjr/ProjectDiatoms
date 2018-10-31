@@ -46,6 +46,14 @@ class ModelClass():
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
             input_size = 244
+        
+        elif model_name == "Densenet121":
+            print("[!] Using Densenet121 model")
+            self.model_ft = models.densenet169(pretrained=use_pretrained)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            num_ftrs = self.model_ft.fc.in_features
+            self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
+            input_size = 244
             
         else:
             print("[x] Invalid model name, exiting!")

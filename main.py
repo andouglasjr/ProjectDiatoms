@@ -84,7 +84,7 @@ data_transforms = {
 
 data_log.log("Starting training", 'l')
 #for t in test_names:
-for t in ['Resnet50']:
+for t in ['Densenet121']:
 
     data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = t, device = device)
     image_datasets = data.get_all_image_datasets()
