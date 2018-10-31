@@ -66,7 +66,7 @@ class ModelClass():
             for param in model.parameters():
                 cont = cont + 1
             interator = 0
-            print('Blocking '+str(self.num_of_layers) +'layers')
+            print('Blocking '+str(self.num_of_layers) +' layers')
             for param in model.parameters():
                 #print(cont - interator)
                 if (cont - interator >= self.num_of_layers):
@@ -74,7 +74,8 @@ class ModelClass():
                 interator=interator+1
     
     def get_criterion(self):
-        return nn.CrossEntropyLoss()      
+        #return nn.CrossEntropyLoss()      
+        return nn.MSELoss()
     
     def get_optimization(self, model, lr, momentum):
         return optim.SGD(model.fc.parameters(), lr=lr, momentum=momentum)

@@ -92,12 +92,13 @@ for t in ['Resnet50']:
     dataset_size = data.get_dataset_size()
     
     data_log.log("DataSet Size: {}".format(dataset_size), 'v')
+    best_accuracy_old = 0
     
-    for count in range(1):
-    #for num_of_layers in range(3,60):
+    #for count in range(1):
+    for num_of_layers in range(1):
         lr = 3.118464108103618e-05
-        #lr =2*10**random.uniform(-5,-5)
-        #lr =0.000031184
+        #lr =10**random.uniform(-4,-5)
+        #lr =3.469783971737552e-05
 
         #Prameters of training
         #best lr=0.0005
@@ -116,15 +117,15 @@ for t in ['Resnet50']:
         data_log.log("Number of Epochs: {}".format(params['num_epochs']), 'e')
         data_log.log("Learning Rate: {}".format(params['lr']), 'e')
 
-        feature_extract=True 
-        num_of_layers=9
+        feature_extract=False 
+        num_of_layers=0
         
         model_ft = ModelClass(model_name=t, feature_extract=feature_extract, num_of_layers=num_of_layers, folder_names = list_of_name_folders, log = data_log)
         model = model_ft.get_model()
         
         best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
         model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
-
+    
         #Analyzing Results
         data_log.log("Analyzing Results to {}".format(t), 'l')
         best_model = model_ft.load_model('results/all_'+t+'_'+ str(lr)+ '.pt', '')
@@ -135,6 +136,7 @@ for t in ['Resnet50']:
         results,correct,incorrect,image_incorrect, correct_class = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2],data)
 
         data.save_results(results,correct,incorrect, data_log)
+        
 
         #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
     data_log.log("Close Log", 'l')

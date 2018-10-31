@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 4, net_name='', device=None):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = False, num_workers = 4, net_name='', device=None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
