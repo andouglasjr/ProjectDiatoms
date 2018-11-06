@@ -84,7 +84,8 @@ data_transforms = {
 
 data_log.log("Starting training", 'l')
 #for t in test_names:
-for t in ['Densenet121']:
+for t in ['Densenet169']:
+#for t in ['Resnet50']:
 
     data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = t, device = device)
     image_datasets = data.get_all_image_datasets()
@@ -94,12 +95,12 @@ for t in ['Densenet121']:
     data_log.log("DataSet Size: {}".format(dataset_size), 'v')
     best_accuracy_old = 0
     
-    #for count in range(1):
-    for num_of_layers in range(1):
-        lr = 3.118464108103618e-05
+    for count in range(1):
+    #for num_of_layers in range(1):
+        #lr = 3.118464108103618e-05
         #lr =10**random.uniform(-4,-5)
         #lr =3.469783971737552e-05
-
+        lr = 2.6909353460670058e-05
         #Prameters of training
         #best lr=0.0005
         params = {
@@ -128,14 +129,14 @@ for t in ['Densenet121']:
     
         #Analyzing Results
         data_log.log("Analyzing Results to {}".format(t), 'l')
-        best_model = model_ft.load_model('results/all_'+t+'_'+ str(lr)+ '.pt', '')
+        best_model = model_ft.load_model('results/BestResultDensenet/all_'+t+'_'+ str(lr)+ '.pt', '')
         #best_model = model_ft.load_model('results/Resnet50.pt', 'cpu')
 
         #Visualizing Results
         visual = ImageVisualizer(list_of_name_folders, mean, std)
         results,correct,incorrect,image_incorrect, correct_class = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2],data)
 
-        data.save_results(results,correct,incorrect, data_log)
+        data.save_results(results,correct,incorrect, correct_class, data_log)
         
 
         #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)

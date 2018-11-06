@@ -47,12 +47,12 @@ class ModelClass():
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
             input_size = 244
         
-        elif model_name == "Densenet121":
-            print("[!] Using Densenet121 model")
+        elif model_name == "Densenet169":
+            print("[!] Using Densenet169 model")
             self.model_ft = models.densenet169(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
-            num_ftrs = self.model_ft.fc.in_features
-            self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
+            self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
+            self.model_ft.classifier = (nn.Linear(1664, num_classes))
             input_size = 244
             
         else:
@@ -82,11 +82,11 @@ class ModelClass():
                 interator=interator+1
     
     def get_criterion(self):
-        #return nn.CrossEntropyLoss()      
-        return nn.MSELoss()
+        return nn.CrossEntropyLoss()      
+        #return nn.MSELoss()
     
     def get_optimization(self, model, lr, momentum):
-        return optim.SGD(model.fc.parameters(), lr=lr, momentum=momentum)
+        return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     
     def get_scheduler(self, optimizer, step_size, gamma):
         return lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)

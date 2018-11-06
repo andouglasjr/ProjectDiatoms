@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = False, num_workers = 4, net_name='', device=None):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 4, net_name='', device=None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
@@ -76,18 +76,31 @@ class DataUtils():
         else:
             print("Inp is None!")       
             
-    def save_results(self, results, correct, incorrect, log):
+    def save_results(self, results, correct, incorrect, correct_class, log):
         log.log("Confusion Matrix Analyzes", 'l')
         results = results.to("cpu", torch.int32)
         log.log("Number Total of Test: {}".format(np.sum(results.numpy())), 'v')
         acc = (correct/(correct+incorrect))*100
         log.log("Accuracy: {}, Correct Number: {}, Incorrect Number: {}".format(acc, correct, incorrect), 'v')
         log.log("{}".format(results), 'v')
+        res = torch.zeros([len(correct_class), len(correct_class)], dtype=torch.int32)
+        cont_i = 0
+        cont_j = 0
+        #print(sorted(correct_class))
+        for i in sorted(correct_class):
+            cont_j = 0
+            for j in sorted(correct_class):
+                res[cont_i,cont_j] = results[i,j]
+                cont_j += 1
+            cont_i += 1                        
+        
+        #res = results[results != 0]
+        log.log("{}".format(res), 'v')
         log.log("Diagonal Sum: {}".format(np.trace(results)), 'v')
         log.log("Classes confusions:", 'l')
         for i in range(50):
             for j in range(50):
-                if(results[i,j] > 1 and i != j):
+                if(results[i,j] >= 1 and i != j):
                     log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i, j, results[i,j].tolist()), 'e')      
                     
     def compute_mean(self, image_datasets, name_dir):
