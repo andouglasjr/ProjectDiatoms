@@ -11,7 +11,7 @@ import copy
 
 class ModelClass():
     
-    def __init__(self, model_name="", num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None):
+    def __init__(self, model_name="", channels = 1, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
@@ -26,7 +26,7 @@ class ModelClass():
             self.folder_names = ['train_diatoms_3_class','val_diatoms_3_class']
         else:
             self.folder_names = folder_names
-        
+        self.channels = channels
         self.model_ft = None
         self.log = log
         input_size = 0
@@ -37,6 +37,17 @@ class ModelClass():
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children()))
+                pretrained_weights = new_features[0].weight
+                new_features[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2)
+                print(new_features[0])
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.conv1 = new_features[0]
+            
             input_size = 244
                
         elif model_name == "Resnet50":
@@ -45,6 +56,18 @@ class ModelClass():
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children()))
+                pretrained_weights = new_features[0].weight
+                new_features[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2)
+                print(new_features[0])
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.conv1 = new_features[0]
+                
+            
             input_size = 244
         
         elif model_name == "Densenet169":
@@ -53,6 +76,17 @@ class ModelClass():
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
             self.model_ft.classifier = (nn.Linear(1664, num_classes))
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children()))
+                pretrained_weights = new_features[0].weight
+                new_features[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
+                print(new_features[0])
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.conv1 = new_features[0]
+            
             input_size = 244
             
         else:
@@ -76,6 +110,7 @@ class ModelClass():
             interator = 0
             print('Blocking '+str(self.num_of_layers) +' layers')
             for param in model.parameters():
+                #print(param.size())
                 #print(cont - interator)
                 if (cont - interator >= self.num_of_layers):
                     param.requires_grad = False
