@@ -52,20 +52,19 @@ class ModelClass():
                
         elif model_name == "Resnet50":
             print("[!] Using Resnet50 model")
-            self.model_ft = models.resnet18(pretrained=use_pretrained)
+            self.model_ft = models.resnet50(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             num_ftrs = self.model_ft.fc.in_features
             self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
             if (self.channels == 1):
-                new_features = nn.Sequential(*list(self.model_ft.children()))
-                pretrained_weights = new_features[0].weight
-                new_features[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2)
-                print(new_features[0])
+                new_features = self.model_ft.features[0]
+                pretrained_weights = new_features.weight
+                layer_conv_1 = nn.Conv2d(1, 64, kernel_size=7, stride=2)
                 # For M-channel weight should randomly initialized with Gaussian
-                new_features[0].weight.data.normal_(0, 0.001)
+                new_features.weight.data.normal_(0, 0.001)
                 # For RGB it should be copied from pretrained weights
                 #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
-                self.model_ft.conv1 = new_features[0]
+                self.model_ft.features[0] = new_features[0]
                 
             
             input_size = 244
@@ -74,18 +73,17 @@ class ModelClass():
             print("[!] Using Densenet169 model")
             self.model_ft = models.densenet169(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
-            self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
+            #self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
             self.model_ft.classifier = (nn.Linear(1664, num_classes))
             if (self.channels == 1):
-                new_features = nn.Sequential(*list(self.model_ft.children()))
-                pretrained_weights = new_features[0].weight
-                new_features[0] = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
-                print(new_features[0])
+                new_features = nn.Sequential(*list(self.model_ft.children())[:-1])
+                #pretrained_weights = new_features[0].weight
+                new_features[0].conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
                 # For M-channel weight should randomly initialized with Gaussian
-                new_features[0].weight.data.normal_(0, 0.001)
+                new_features[0].conv0.weight.data.normal_(0, 0.001)
                 # For RGB it should be copied from pretrained weights
                 #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
-                self.model_ft.conv1 = new_features[0]
+                self.model_ft.features = new_features
             
             input_size = 244
             
@@ -106,8 +104,10 @@ class ModelClass():
         if feature_extracting:
             cont = 0
             for param in model.parameters():
+                print(param.size())
                 cont = cont + 1
             interator = 0
+            print(cont)
             print('Blocking '+str(self.num_of_layers) +' layers')
             for param in model.parameters():
                 #print(param.size())

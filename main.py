@@ -97,10 +97,10 @@ for t in ['Densenet169']:
     
     for count in range(1):
     #for num_of_layers in range(1):
-        #lr = 3.118464108103618e-05
+        #lr = 3.118464108103618e-05 #Learning rate to Resnet50
         #lr =10**random.uniform(-4,-5)
         #lr =3.469783971737552e-05
-        lr = 2.6909353460670058e-05
+        lr = 2.6909353460670058e-05 #Learning rate to Densenet169
         #Prameters of training
         #best lr=0.0005
         params = {
@@ -119,17 +119,19 @@ for t in ['Densenet169']:
         data_log.log("Learning Rate: {}".format(params['lr']), 'e')
 
         feature_extract=False 
-        num_of_layers=0
+        num_of_layers=count*6+4
+        #print(count)
         
-        model_ft = ModelClass(model_name=t, feature_extract=feature_extract, num_of_layers=num_of_layers, folder_names = list_of_name_folders, log = data_log)
+        model_ft = ModelClass(model_name=t,channels=3, feature_extract=feature_extract, num_of_layers=num_of_layers, folder_names = list_of_name_folders, log = data_log)
         model = model_ft.get_model()
-        
-        best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-        model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
+        #print(model)
+        #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+        #model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
     
         #Analyzing Results
-        data_log.log("Analyzing Results to {}".format(t), 'l')
-        best_model = model_ft.load_model('results/BestResultDensenet/all_'+t+'_'+ str(lr)+ '.pt', '')
+        #data_log.log("Analyzing Results to {}".format(t), 'l')
+        best_model = model_ft.load_model('results/BestResultDensenet_1/all_Densenet169_2.6909353460670058e-05.pt', '')
+        #best_model = model_ft.load_model('results/all_'+t+'_'+ str(lr)+ '.pt', '')
         #best_model = model_ft.load_model('results/Resnet50.pt', 'cpu')
 
         #Visualizing Results
@@ -139,5 +141,5 @@ for t in ['Densenet169']:
         data.save_results(results,correct,incorrect, correct_class, data_log)
         
 
-        #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
+        visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
     data_log.log("Close Log", 'l')
