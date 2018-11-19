@@ -1,7 +1,7 @@
 class DataLogger:
     
     def __init__(self):
-        self.file_log = open('results/log.dat','w')
+        self.file_log = open('results/log.csv','w')
     
     def log(self, content, log, close = False):
         if(log == 'l'):

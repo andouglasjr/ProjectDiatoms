@@ -6,9 +6,11 @@ import numpy as np
 import torchvision
 from torchvision import datasets, models, transforms
 import os
-import matplotlib.pyplot as plt
+from matplotlib import pyplot as plt
 from ImageFolderDiatoms import ImageFolderDiatoms
 from DiatomsDataset import DiatomsDataset
+import csv
+import math
 
 class DataUtils():
 
@@ -142,7 +144,7 @@ class DataUtils():
 
         #print("Mean: $f, Std0: $f, Std1: $f", (pop_mean,pop_std0,pop_std1))
         return torch.from_numpy(pop_mean), torch.from_numpy(pop_std0)
-        
+    
 
     
     

@@ -12,7 +12,7 @@ from sklearn.metrics import f1_score
 
 class ModelClass():
     
-    def __init__(self, model_name="", channels = 3, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None, drop_rate = 0):
+    def __init__(self, model_name="", channels = 3, num_classes = 3, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None, drop_rate = 0):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
@@ -28,12 +28,14 @@ class ModelClass():
             self.folder_names = ['train_diatoms_3_class','val_diatoms_3_class']
         else:
             self.folder_names = folder_names
+            
         self.channels = channels
         self.model_ft = None
         self.log = log
         input_size = 0
         self.best_loss = 1000
         self.cont_to_stop = 0
+        
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
             self.model_ft = models.resnet18(pretrained=use_pretrained)
@@ -50,7 +52,6 @@ class ModelClass():
                 # For RGB it should be copied from pretrained weights
                 #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
                 self.model_ft.conv1 = new_features[0]
-            
             input_size = 244
                
         elif model_name == "Resnet50":
@@ -67,9 +68,6 @@ class ModelClass():
                 new_features.weight.data.normal_(0, 0.001)
                 # For RGB it should be copied from pretrained weights
                 #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
-                self.model_ft.features[0] = new_features[0]
-                
-            
             input_size = 244
         
         elif model_name == "Densenet169":
@@ -200,7 +198,11 @@ class ModelClass():
     def get_device(self):
         return self.device
     
-    def confusion_matrix(self, model, dataloaders, folder_name, data):
+    def test_model(self, model, dataloaders, folder_name, data):
+        import csv
+        #logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
+        #logwriter.writeheader()
+        
         was_training = model.training
         model.eval()
         correct = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
