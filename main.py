@@ -144,7 +144,8 @@ def train(args):
                 'set_criterion' : True,
                 'num_epochs' : args.epochs,
                 'net_name' : network_name,
-                'drop_rate' : drop_rate
+                'drop_rate' : drop_rate,
+                'loss_function': loss_function
             }
 
             data_log.log("Network Architeture: {}".format(network_name), 'l')
@@ -203,6 +204,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', default=128, type=int)
     parser.add_argument('--lr', default=0.0001, type=float,
                         help="Initial learning rate")
+    parser.add_argument('--loss_function')
     parser.add_argument('--lr_decay', default=0.9, type=float,
                         help="The value multiplied by lr at each epoch. Set a larger value for larger epochs")
     parser.add_argument('--data_dir', default='../data',

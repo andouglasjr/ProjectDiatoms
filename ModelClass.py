@@ -9,6 +9,7 @@ import sys
 import time
 import copy
 from sklearn.metrics import f1_score
+from CenterLoss import CenterLoss
 
 class ModelClass():
     
@@ -177,11 +178,14 @@ class ModelClass():
                     print("child ",child_counter," was not frozen")
                 child_counter += 1
     
-    def get_criterion(self):
-        return nn.CrossEntropyLoss()      
+    def get_criterion(self, loss_function):
+        if loss_function == 'cross_entropy':
+            return nn.CrossEntropyLoss()
+        else:
+            return CenterLoss(num_classes=10, feat_dim=2, use_gpu=True)
     
     def get_optimization(self, model, lr, momentum):
-        return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
+            return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
     
     def get_scheduler(self, optimizer, step_size, gamma):
         return lr_scheduler.StepLR(optimizer, step_size=step_size, gamma=gamma)
@@ -290,7 +294,7 @@ class ModelClass():
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
         
-        criterion = self.get_criterion()
+        
         #Get parameters of training
         lr = params['lr']
         momentum = params['momentum']
@@ -300,13 +304,13 @@ class ModelClass():
         set_criterion = params['set_criterion']
         net_name = params['net_name']
         drop_rate = params['drop_rate']
+        loss_function = params['loss_function']
+        
+        criterion = self.get_criterion(loss_function)
         
         #Setting parameters of training
         optimizer = self.get_optimization(model, lr, momentum)
         scheduler = self.get_scheduler(optimizer, step_size, gamma)
-        
-        if set_criterion:
-            self.get_criterion()
             
         #Using more than one GPU
         ######################################
