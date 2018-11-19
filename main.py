@@ -84,8 +84,8 @@ data_transforms = {
 
 data_log.log("Starting training", 'l')
 #for t in test_names:
-for t in ['Densenet169']:
-#for t in ['Resnet50']:
+#for t in ['Densenet169']:
+for t in ['Resnet50']:
 
     data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = t, device = device)
     image_datasets = data.get_all_image_datasets()
@@ -94,52 +94,67 @@ for t in ['Densenet169']:
     
     data_log.log("DataSet Size: {}".format(dataset_size), 'v')
     best_accuracy_old = 0
+    drop_rate = 0
     
-    for count in range(1):
-    #for num_of_layers in range(1):
+    #for count in range(5):
+    count = 0
+    for count in range(10):
+    #for lr in [8.532537199285955e-05, 9.132537199285955e-05]:
         #lr = 3.118464108103618e-05 #Learning rate to Resnet50
-        #lr =10**random.uniform(-4,-5)
-        #lr =3.469783971737552e-05
-        lr = 2.6909353460670058e-05 #Learning rate to Densenet169
+        lr =10**random.uniform(-3,-5)
+        #lr =0.00001
+        #lr = 0.0006352168177757726
+        #lr = 8.832537199285954e-04 #Learning rate to Densenet201
+        #lr = 2.6909353460670058e-05
+        #lr = 2.6909353460670058e-05 #Learning rate to Densenet169
         #Prameters of training
         #best lr=0.0005
+        #momentum = 2.5794184243462132e-05
+        
         params = {
             'lr' : lr,
-            'momentum' : 0.9,
-            'step_size' : 4,
-            'gamma' : 0.00001,
+            'momentum' : 0.0009,
+            'step_size' : 5,
+            'gamma' : 0.0001,
             'set_criterion' : True,
-            'num_epochs' : 6,
-            'net_name' : t
+            'num_epochs' : 20,
+            'net_name' : t,
+            'drop_rate' : drop_rate
         }
 
         data_log.log("Network Architeture: {}".format(t), 'l')
         data_log.log("Parameters:", 'l')
         data_log.log("Number of Epochs: {}".format(params['num_epochs']), 'e')
         data_log.log("Learning Rate: {}".format(params['lr']), 'e')
+        data_log.log("Drop Rate: {}".format(drop_rate), 'e')
+        data_log.log("Momentum: {}".format(params['momentum']), 'e')
+        data_log.log("Gamma: {}".format(params['gamma']), 'e')
 
-        feature_extract=False 
-        num_of_layers=count*6+4
+        feature_extract=True
+        #num_of_layers=count*6+4 #Densenet
+        num_of_layers=8 #Resnet
+        
         #print(count)
         
-        model_ft = ModelClass(model_name=t,channels=3, feature_extract=feature_extract, num_of_layers=num_of_layers, folder_names = list_of_name_folders, log = data_log)
+        model_ft = ModelClass(model_name=t,channels=3, feature_extract=feature_extract, num_of_layers=num_of_layers, use_pretrained=True, folder_names = list_of_name_folders, log = data_log, drop_rate = drop_rate)
         model = model_ft.get_model()
-        #print(model)
-        #best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-        #model_ft.save_model(best_model, 'results/all_' + t + '_' +str(lr)+'.pt')
-    
+        
+        #   print(list(model.named_parameters()))
+        best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
+        model_ft.save_model(best_model, 'results/'+t+'/all_lr_'+ str(lr)+'_drop_'+str(drop_rate)+'.pt')
+        
         #Analyzing Results
-        #data_log.log("Analyzing Results to {}".format(t), 'l')
-        best_model = model_ft.load_model('results/BestResultDensenet_1/all_Densenet169_2.6909353460670058e-05.pt', '')
-        #best_model = model_ft.load_model('results/all_'+t+'_'+ str(lr)+ '.pt', '')
+        data_log.log("Analyzing Results to {}".format(t), 'l')
+        #best_model = model_ft.load_model('results/BestResultDensenet_1/all_Densenet169_2.6909353460670058e-05.pt', '')
+        best_model = model_ft.load_model('results/'+t+'/all_lr_'+ str(lr)+'_drop_'+str(drop_rate)+'.pt', '')
+        #best_model = model_ft.load_model('results/'+t+'/all_lr_'+ str(lr)+'_drop_'+str(drop_rate)+'.pt', '')
         #best_model = model_ft.load_model('results/Resnet50.pt', 'cpu')
 
         #Visualizing Results
         visual = ImageVisualizer(list_of_name_folders, mean, std)
         results,correct,incorrect,image_incorrect, correct_class = model_ft.confusion_matrix(best_model, dataloaders, list_of_name_folders[2],data)
 
-        data.save_results(results,correct,incorrect, correct_class, data_log)
+        data.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect)
         
-
-        visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
+        #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
     data_log.log("Close Log", 'l')

@@ -7,6 +7,8 @@ import torchvision
 from torchvision import datasets, models, transforms
 import os
 import matplotlib.pyplot as plt
+from ImageFolderDiatoms import ImageFolderDiatoms
+from DiatomsDataset import DiatomsDataset
 
 class DataUtils():
 
@@ -15,14 +17,13 @@ class DataUtils():
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
         if transformations == None:
-            self.image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x)) for x in self.list_of_name_folders}
+            self.image_datasets = {x: ImageFolderDiatoms(os.path.join(data_dir, x)) for x in self.list_of_name_folders}
         else:
-            self.image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x), 
+            self.image_datasets = {x: ImageFolderDiatoms(os.path.join(data_dir, x), 
                                                            transformations[x]) for x in self.list_of_name_folders}
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.num_workers = num_workers
-        
         self.device = device
         
         #init results files
@@ -44,9 +45,9 @@ class DataUtils():
                for x in self.list_of_name_folders}
         return dataloaders
     
-    def open_file_data(self, net_name, lr):
-            file_train = open('results/'+net_name+'_'+str(lr)+'_data_train.dat','w')
-            file_val = open('results/'+net_name+'_'+str(lr)+'_data_val.dat','w')
+    def open_file_data(self, net_name, lr, drop_rate):
+            file_train = open('results/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_train.dat','w')
+            file_val = open('results/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_val.dat','w')
             self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
             
     
@@ -76,13 +77,13 @@ class DataUtils():
         else:
             print("Inp is None!")       
             
-    def save_results(self, results, correct, incorrect, correct_class, log):
+    def save_results(self, results, correct, incorrect, correct_class, log, incorrect_images, show_filename_image = False):
         log.log("Confusion Matrix Analyzes", 'l')
         results = results.to("cpu", torch.int32)
         log.log("Number Total of Test: {}".format(np.sum(results.numpy())), 'v')
         acc = (correct/(correct+incorrect))*100
         log.log("Accuracy: {}, Correct Number: {}, Incorrect Number: {}".format(acc, correct, incorrect), 'v')
-        log.log("{}".format(results), 'v')
+        #   log.log("{}".format(results), 'v')
         res = torch.zeros([len(correct_class), len(correct_class)], dtype=torch.int32)
         cont_i = 0
         cont_j = 0
@@ -93,6 +94,10 @@ class DataUtils():
                 res[cont_i,cont_j] = results[i,j]
                 cont_j += 1
             cont_i += 1                        
+        
+        if(show_filename_image):
+            for i in range(1,len(incorrect_images)):
+                log.log("Predict Class: {} -> Label Class: {} - Image Name: {}".format(incorrect_images[i]['class'], incorrect_images[i]['correct_class'], incorrect_images[i]['filename']), 'e')      
         
         #res = results[results != 0]
         log.log("{}".format(res), 'v')
