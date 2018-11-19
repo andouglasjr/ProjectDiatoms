@@ -8,15 +8,17 @@ import os
 import sys
 import time
 import copy
+from sklearn.metrics import f1_score
 
 class ModelClass():
     
-    def __init__(self, model_name="", channels = 1, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None):
+    def __init__(self, model_name="", channels = 3, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None, drop_rate = 0):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
         self.use_pretrained = use_pretrained
         self.num_of_layers = num_of_layers
+        self.drop_rate = drop_rate
         if(device == None):
             self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         else:
@@ -30,7 +32,8 @@ class ModelClass():
         self.model_ft = None
         self.log = log
         input_size = 0
-        
+        self.best_loss = 1000
+        self.cont_to_stop = 0
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
             self.model_ft = models.resnet18(pretrained=use_pretrained)
@@ -87,6 +90,60 @@ class ModelClass():
             
             input_size = 244
             
+        elif model_name == "Densenet121":
+            print("[!] Using Densenet121 model")
+            self.model_ft = models.densenet121(pretrained=use_pretrained)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            #self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
+            self.model_ft.classifier = (nn.Linear(1024, num_classes))
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children())[:-1])
+                #pretrained_weights = new_features[0].weight
+                new_features[0].conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].conv0.weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.features = new_features
+            
+            input_size = 244
+        
+        elif model_name == "Densenet201":
+            print("[!] Using Densenet201 model")
+            self.model_ft = models.densenet201(pretrained=use_pretrained, drop_rate = self.drop_rate)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            #self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
+            self.model_ft.classifier = (nn.Linear(1920, num_classes))
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children())[:-1])
+                #pretrained_weights = new_features[0].weight
+                new_features[0].conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].conv0.weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.features = new_features
+            
+            input_size = 244
+            
+        elif model_name == "Densenet161":
+            print("[!] Using Densenet161 model")
+            self.model_ft = models.densenet161(pretrained=use_pretrained)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            #self.model_ft.features = nn.Sequential(*list(self.model_ft.children())[:-1])
+            self.model_ft.classifier = (nn.Linear(2208, num_classes))
+            if (self.channels == 1):
+                new_features = nn.Sequential(*list(self.model_ft.children())[:-1])
+                #pretrained_weights = new_features[0].weight
+                new_features[0].conv0 = nn.Conv2d(1, 64, kernel_size=7, stride=2, padding = 3)
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features[0].conv0.weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+                self.model_ft.features = new_features
+            
+            input_size = 244
+            
         else:
             print("[x] Invalid model name, exiting!")
             sys.exit()
@@ -100,25 +157,30 @@ class ModelClass():
     def get_num_of_layers(self):
         return self.num_of_layers
     
-    def set_parameter_requires_grad(self, model, feature_extracting):   
-        if feature_extracting:
-            cont = 0
-            for param in model.parameters():
-                print(param.size())
-                cont = cont + 1
-            interator = 0
-            print(cont)
-            print('Blocking '+str(self.num_of_layers) +' layers')
-            for param in model.parameters():
-                #print(param.size())
-                #print(cont - interator)
-                if (cont - interator >= self.num_of_layers):
-                    param.requires_grad = False
-                interator=interator+1
+    def set_parameter_requires_grad(self, model, feature_extracting):  
+        if(feature_extracting):
+            child_counter = 0
+            for child in model.children():
+                if child_counter < self.num_of_layers:
+                    print("child ",child_counter," was frozen")
+                    for param in child.parameters():
+                        param.requires_grad = False
+                elif child_counter == self.num_of_layers:
+                    children_of_child_counter = 0
+                    for children_of_child in child.children():
+                        if children_of_child_counter < 1:
+                            for param in children_of_child.parameters():
+                                param.requires_grad = False
+                            print('child ', children_of_child_counter, 'of child',child_counter,' was frozen')
+                        else:
+                            print('child ', children_of_child_counter, 'of child',child_counter,' was not frozen')
+                        children_of_child_counter += 1
+                else:
+                    print("child ",child_counter," was not frozen")
+                child_counter += 1
     
     def get_criterion(self):
         return nn.CrossEntropyLoss()      
-        #return nn.MSELoss()
     
     def get_optimization(self, model, lr, momentum):
         return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -148,9 +210,12 @@ class ModelClass():
         
         cont_correct = 0
         cont_incorrect = 0
+        correct_class = 0
 
         with torch.no_grad():      
-            for i, (inputs, labels) in enumerate(dataloaders[folder_name]):
+            for i, sample in enumerate(dataloaders[folder_name]):
+                (inputs, labels),(filename,_) = sample
+                
                 #inputs = inputs.to(self.device)
                 #labels = labels.to(self.device)
                 
@@ -164,6 +229,12 @@ class ModelClass():
                 
                 preds = [int(class_names[l.item()]) for l in preds]
                 #print(preds)
+                self.log.log("F1 SOCRE:", 'l')
+                self.log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
+                self.log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
+                self.log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
+                self.log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
+                
                                   
                 for k in range(len(labels)):
                     
@@ -176,7 +247,8 @@ class ModelClass():
                         incorrect[0,preds[k]] += 1
                         image_incorrect.append({'class' : preds[k],
                                                 'correct_class': labels[k], 
-                                                'image': inputs.data[k]})
+                                                'image': inputs.data[k],
+                                                'filename' : filename[k]})
                         cont_incorrect += 1
                         
                 if(i>0):
@@ -196,6 +268,20 @@ class ModelClass():
         new_list = l1 + list(l2_ - l1_)
         return sorted(new_list) 
     
+    def earlier_stop(self, loss):
+        #print(self.best_loss, loss)
+        if(self.best_loss < loss):
+            self.cont_to_stop += 1
+        else:
+            self.best_loss = loss
+            self.cont_to_stop = 0   
+            
+        if(self.cont_to_stop == 3):
+            self.log.log('Loss is not falling down! Stopping this training...', 'l')
+            return True
+        return False
+            
+    
     def train_model(self, model, dataloaders, params, dataset_sizes, data):
         since = time.time()
         isKfoldMethod = False
@@ -211,6 +297,7 @@ class ModelClass():
         gamma = params['gamma']
         set_criterion = params['set_criterion']
         net_name = params['net_name']
+        drop_rate = params['drop_rate']
         
         #Setting parameters of training
         optimizer = self.get_optimization(model, lr, momentum)
@@ -228,11 +315,11 @@ class ModelClass():
 
         model = model.to(self.get_device())
         #####################################
-        data.open_file_data(net_name, lr)
+        data.open_file_data(net_name, lr, drop_rate)
         for epoch in range(num_epochs):
             self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
             self.log.log('-' * 10, 'l')
-
+            last_phase = ''
             # Each epoch has a training and validation phase
             for phase in self.folder_names[:2]:
                 if phase ==  self.folder_names[0]:
@@ -245,7 +332,9 @@ class ModelClass():
                 running_corrects = 0
 
                 # Iterate over data.
-                for inputs, labels in dataloaders[phase]:
+                for i, sample in enumerate(dataloaders[phase]):
+                    (inputs, labels),(filename,_) = sample
+                    
                     inputs = inputs.to(self.get_device())
                     labels = labels.to(self.get_device())
                     #print(inputs.shape)
@@ -259,7 +348,7 @@ class ModelClass():
                         outputs = model(inputs)
 
                         _, preds = torch.max(outputs, 1)
-                        loss = criterion(outputs, labels)
+                        loss = criterion(outputs, labels)   
 
                         # backward + optimize only if in training phase
                         if phase ==  self.folder_names[0]:
@@ -273,7 +362,7 @@ class ModelClass():
 
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
-
+                
                 #if phase == 'train':
                     #loss = {'Acc':epoch_acc, 'Loss':epoch_loss}
                     #vis.plot_combine('Combine Plot',loss)
@@ -289,9 +378,15 @@ class ModelClass():
                 if phase ==  self.folder_names[1] and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
+                
+                last_phase = phase
+                
+            if(last_phase == self.folder_names[1]):
+                if (self.earlier_stop(epoch_loss)):
+                        break
 
             print()
-
+        print()
         time_elapsed = time.time() - since
         self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60), 'v')
