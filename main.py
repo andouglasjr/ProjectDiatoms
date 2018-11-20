@@ -199,17 +199,22 @@ if __name__ == "__main__":
                        help="If not setted will be used the lr already found!")
     parser.add_argument('--range', default=1, type=int,
                        help="How much times the network will be trainned with diferent learning rates!")
-    parser.add_argument('--exponential_range', nargs='*', default=None, type=int)
-    parser.add_argument('--epochs', default=8, type=int)
-    parser.add_argument('--batch_size', default=128, type=int)
+    parser.add_argument('--exponential_range', nargs='*', default=None, type=int,
+                       help="What is the exponential range to find the best lr, e.g. --exponential_range -3 -5")
+    parser.add_argument('--epochs', default=8, type=int,
+                       help="Number of epochs")
+    parser.add_argument('--batch_size', default=128, type=int,
+                       help="Size of the batch")
     parser.add_argument('--lr', default=0.0001, type=float,
                         help="Initial learning rate")
-    parser.add_argument('--loss_function')
+    parser.add_argument('--loss_function', default = 'cross_validation'
+                       help="Which will be loss function used? Cross Validation (default), Center Loss or both")
     parser.add_argument('--lr_decay', default=0.9, type=float,
                         help="The value multiplied by lr at each epoch. Set a larger value for larger epochs")
     parser.add_argument('--data_dir', default='../data',
                         help="Directory of data. If no data, use \'--download\' flag to download it")
-    parser.add_argument('--save_dir', default='results')
+    parser.add_argument('--save_dir', default='results',
+                       help="Directory to save the results!")
     parser.add_argument('-t', '--testing', action='store_true',
                         help="Test the trained model on testing dataset")
     parser.add_argument('-w', '--weights', default=None,
