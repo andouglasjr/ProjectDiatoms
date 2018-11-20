@@ -182,7 +182,7 @@ class ModelClass():
         if loss_function == 'cross_entropy':
             return nn.CrossEntropyLoss()
         else:
-            return CenterLoss(num_classes=10, feat_dim=2, use_gpu=True)
+            return CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
     
     def get_optimization(self, model, lr, momentum):
             return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -231,6 +231,7 @@ class ModelClass():
                 correct_class = np.array(list(set(np.array(labels))))
 
                 outputs = model(inputs)
+                print(outputs)
                 _, preds = torch.max(outputs, 1)
                 
                 preds = [int(class_names[l.item()]) for l in preds]
@@ -311,6 +312,10 @@ class ModelClass():
         #Setting parameters of training
         optimizer = self.get_optimization(model, lr, momentum)
         scheduler = self.get_scheduler(optimizer, step_size, gamma)
+        #center_loss = CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
+        #params = list(model.parameters()) + list(center_loss.parameters())
+        #optimizer = torch.optim.SGD(params, lr=lr) # here lr is the overall learning rate
+        #scheduler = self.get_scheduler(optimizer, step_size, gamma)
             
         #Using more than one GPU
         ######################################
@@ -347,6 +352,7 @@ class ModelClass():
 
                     # zero the parameter gradients
                     optimizer.zero_grad()
+                    alpha = 0.5
 
                     # forward
                     # track history if only in train
@@ -355,10 +361,13 @@ class ModelClass():
 
                         _, preds = torch.max(outputs, 1)
                         loss = criterion(outputs, labels)   
+                        #loss = center_loss(outputs, labels)*alpha + criterion(outputs, labels)  
 
                         # backward + optimize only if in training phase
                         if phase ==  self.folder_names[0]:
                             loss.backward()
+                            #for param in center_loss.parameters():
+                             #   param.grad.data *= (1./alpha)
                             optimizer.step()
 
                     # statistics

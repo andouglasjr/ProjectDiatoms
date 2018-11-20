@@ -134,7 +134,7 @@ def train(args):
         drop_rate = 0
         count = 0
         lr = get_learning_rate(args, network_name)
-        
+        loss_function = args.loss_function
         for count in range(args.range):      
             params = {
                 'lr' : lr,
