@@ -10,6 +10,7 @@ import time
 import copy
 from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
+import keyboard
 
 class ModelClass():
     
@@ -36,6 +37,7 @@ class ModelClass():
         input_size = 0
         self.best_loss = 1000
         self.cont_to_stop = 0
+        self.num_of_features = 0
         
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
@@ -59,8 +61,8 @@ class ModelClass():
             print("[!] Using Resnet50 model")
             self.model_ft = models.resnet50(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
-            num_ftrs = self.model_ft.fc.in_features
-            self.model_ft.fc = nn.Linear(num_ftrs, num_classes)
+            self.num_of_features = self.model_ft.fc.in_features
+            self.model_ft.fc = nn.Linear(self.num_of_features, num_classes)
             if (self.channels == 1):
                 new_features = self.model_ft.features[0]
                 pretrained_weights = new_features.weight
@@ -179,10 +181,12 @@ class ModelClass():
                 child_counter += 1
     
     def get_criterion(self, loss_function):
-        if loss_function == 'cross_entropy':
-            return nn.CrossEntropyLoss()
-        else:
+        if loss_function == 'center_loss':
             return CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
+        elif loss_function == 'softmax':
+            return nn.Softmax()
+        elif loss_function == 'cross_entropy':
+            return nn.CrossEntropyLoss()
     
     def get_optimization(self, model, lr, momentum):
             return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -201,6 +205,204 @@ class ModelClass():
         
     def get_device(self):
         return self.device
+    
+    def update_correct_class(self, l1,l2):
+        if ((l1 == l2).all()):
+            return l1
+        if(len(l2)>len(l1)):
+            l1_ = l2
+            l2_ = l1
+        l1_ = set(l1)
+        l2_ = set(l2)
+        new_list = l1 + list(l2_ - l1_)
+        return sorted(new_list) 
+    
+    def earlier_stop(self, loss):
+        #print(self.best_loss, loss)
+        if(self.best_loss < loss):
+            self.cont_to_stop += 1
+        else:
+            self.best_loss = loss
+            self.cont_to_stop = 0   
+            
+        if(self.cont_to_stop == 3):
+            self.log.log('Loss is not falling down! Stopping this training...', 'l')
+            return True
+        return False
+            
+    
+    def train_model(self, model, dataloaders, params, dataset_sizes, data, args):
+        since = time.time()
+        isKfoldMethod = False
+        best_model_wts = copy.deepcopy(model.state_dict())
+        best_acc = 0.0
+        if args.plot:
+            all_features, all_labels = [], []
+        
+        #Get parameters of training
+        lr = params['lr']
+        momentum = params['momentum']
+        num_epochs = params['num_epochs']
+        step_size = params['step_size']
+        gamma = params['gamma']
+        set_criterion = params['set_criterion']
+        net_name = params['net_name']
+        drop_rate = params['drop_rate']
+        loss_function = params['loss_function']
+
+        #Setting parameters of training
+        if(loss_function == 'cross_entropy' or loss_function=='softmax'):
+            criterion = self.get_criterion(loss_function)
+            optimizer = self.get_optimization(model, lr, momentum)
+            scheduler = self.get_scheduler(optimizer, step_size, gamma)
+        elif(loss_function == 'center_loss'):
+            center_loss = CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
+            criterion = self.get_criterion('cross_entropy')
+            params = list(model.parameters()) + list(center_loss.parameters())
+            optimizer = torch.optim.SGD(params, lr=lr) # here lr is the overall learning rate
+            scheduler = self.get_scheduler(optimizer, step_size, gamma)
+            
+        #Using more than one GPU
+        ######################################
+        if torch.cuda.device_count() > 1:
+            print("Let's use", torch.cuda.device_count(), "GPUs!")
+            #dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            model = nn.DataParallel(model)
+
+        model = model.to(self.get_device())
+        #####################################
+        data.open_file_data(args.save_dir, net_name, lr, drop_rate)
+        for epoch in range(num_epochs):
+            #os.system('cls' if os.name == 'nt' else 'clear')
+            c_print = ''
+            #self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
+            
+            last_phase = ''
+            # Each epoch has a training and validation phase
+            for phase in self.folder_names[:2]:
+                if phase ==  self.folder_names[0]:
+                    scheduler.step()
+                    model.train()  # Set model to training mode
+                else:
+                    model.eval()   # Set model to evaluate mode
+
+                running_loss = 0.0
+                running_corrects = 0
+
+                # Iterate over data.
+                for i, sample in enumerate(dataloaders[phase]):                                                                                                                                                                                                                                                                                                                                                             
+                    (inputs, labels),(filename,_) = sample
+                    
+                    inputs = inputs.to(self.get_device())
+                    labels = labels.to(self.get_device())
+                    #print(inputs.shape)
+
+                    # zero the parameter gradients
+                    optimizer.zero_grad()
+                    alpha = 0.003
+                    lr_cent = 0.5
+
+                    # forward
+                    # track history if only in train
+                    with torch.set_grad_enabled(phase ==  self.folder_names[0]):
+                        outputs = model(inputs)
+
+                        _, preds = torch.max(outputs, 1)
+                        if(loss_function == 'cross_entropy' or loss_function=='softmax'):
+                            loss = criterion(outputs, labels) 
+                        elif(loss_function == 'center_loss'):
+                            loss = center_loss(outputs, labels)*alpha + criterion(outputs, labels)  
+                            optimizer.zero_grad()
+
+                        # backward + optimize only if in training phase
+                        if phase ==  self.folder_names[0]:
+                            loss.backward()
+                            if(loss_function == 'center_loss'):
+                                for param in center_loss.parameters():
+                                    param.grad.data *= (lr_cent/(alpha*lr))
+                            optimizer.step()
+
+                    # statistics
+                    running_loss += loss.item() * inputs.size(0)
+                    running_corrects += torch.sum(preds == labels.data)
+                    
+                    if args.plot:
+                        all_features.append(features)
+                        all_labels.append(labels.data.cpu().numpy())
+                            
+                if args.plot:
+                    all_features = np.concatenate(all_features, 0)
+                    all_labels = np.concatenate(all_labels, 0)
+                    plot_features(all_features, all_labels, num_classes, epoch, prefix='train')
+
+                epoch_loss = running_loss / dataset_sizes[phase]
+                epoch_acc = running_corrects.double() / dataset_sizes[phase]
+                
+                #if phase == 'train':
+                    #loss = {'Acc':epoch_acc, 'Loss':epoch_loss}
+                    #vis.plot_combine('Combine Plot',loss)
+                
+                if phase == self.folder_names[0]:
+                    c_print = 'Epoch {}/{} : train_loss = {:.4f}, train_acc = {:.4f}'.format(epoch, num_epochs, epoch_loss, epoch_acc)
+                else:
+                    c_print = c_print + ', val_loss = {:.4f}, val_acc = {:.4f}'.format(epoch_loss, epoch_acc)
+                    self.log.log(c_print, 'v')
+                content = '{} {:.4f} {:.4f}'.format(epoch, epoch_loss, epoch_acc)
+                close = False
+                if(epoch == num_epochs - 1):
+                    close = True
+                data.save_data_training(phase, content, close)
+                
+
+                # deep copy the model
+                if phase ==  self.folder_names[1] and epoch_acc > best_acc:
+                    best_acc = epoch_acc
+                    best_model_wts = copy.deepcopy(model.state_dict())
+                
+                last_phase = phase
+
+            if(last_phase == self.folder_names[1]):
+                if (self.earlier_stop(epoch_loss)):
+                        break
+           
+            #if keyboard.is_pressed('q'):#if key 'q' is pressed 
+             #   print('Stopping this training...')
+             #   break#finishing the loop
+            #else:
+            #    pass
+
+            #print()
+        print()
+        time_elapsed = time.time() - since
+        self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
+            time_elapsed // 60, time_elapsed % 60), 'v')
+        self.log.log('Best val Acc: {:4f}'.format(best_acc), 'v')
+
+        # load best model weights
+        model.load_state_dict(best_model_wts)
+        return model
+    
+    def plot_features(features, labels, num_classes, epoch, prefix):
+        """Plot features on 2D plane.
+        Args:
+            features: (num_instances, num_features).
+            labels: (num_instances). 
+        """
+        colors = ['C0', 'C1', 'C2']
+        for label_idx in range(num_classes):
+            plt.scatter(
+                features[labels==label_idx, 0],
+                features[labels==label_idx, 1],
+                c=colors[label_idx],
+                s=1,
+            )
+        plt.legend(['0', '1', '2'], loc='upper right')
+        dirname = osp.join(args.save_dir, prefix)
+        if not osp.exists(dirname):
+            os.mkdir(dirname)
+        save_name = osp.join(dirname, 'epoch_' + str(epoch+1) + '.png')
+        plt.savefig(save_name, bbox_inches='tight')
+        plt.close()
     
     def test_model(self, model, dataloaders, folder_name, data):
         import csv
@@ -231,7 +433,7 @@ class ModelClass():
                 correct_class = np.array(list(set(np.array(labels))))
 
                 outputs = model(inputs)
-                print(outputs)
+                #print(outputs)
                 _, preds = torch.max(outputs, 1)
                 
                 preds = [int(class_names[l.item()]) for l in preds]
@@ -263,150 +465,3 @@ class ModelClass():
                 correct_class_old = correct_class
 
         return results, cont_correct, cont_incorrect, image_incorrect, correct_class
-    
-    def update_correct_class(self, l1,l2):
-        if ((l1 == l2).all()):
-            return l1
-        if(len(l2)>len(l1)):
-            l1_ = l2
-            l2_ = l1
-        l1_ = set(l1)
-        l2_ = set(l2)
-        new_list = l1 + list(l2_ - l1_)
-        return sorted(new_list) 
-    
-    def earlier_stop(self, loss):
-        #print(self.best_loss, loss)
-        if(self.best_loss < loss):
-            self.cont_to_stop += 1
-        else:
-            self.best_loss = loss
-            self.cont_to_stop = 0   
-            
-        if(self.cont_to_stop == 3):
-            self.log.log('Loss is not falling down! Stopping this training...', 'l')
-            return True
-        return False
-            
-    
-    def train_model(self, model, dataloaders, params, dataset_sizes, data):
-        since = time.time()
-        isKfoldMethod = False
-        best_model_wts = copy.deepcopy(model.state_dict())
-        best_acc = 0.0
-        
-        
-        #Get parameters of training
-        lr = params['lr']
-        momentum = params['momentum']
-        num_epochs = params['num_epochs']
-        step_size = params['step_size']
-        gamma = params['gamma']
-        set_criterion = params['set_criterion']
-        net_name = params['net_name']
-        drop_rate = params['drop_rate']
-        loss_function = params['loss_function']
-        
-        criterion = self.get_criterion(loss_function)
-        
-        #Setting parameters of training
-        optimizer = self.get_optimization(model, lr, momentum)
-        scheduler = self.get_scheduler(optimizer, step_size, gamma)
-        #center_loss = CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
-        #params = list(model.parameters()) + list(center_loss.parameters())
-        #optimizer = torch.optim.SGD(params, lr=lr) # here lr is the overall learning rate
-        #scheduler = self.get_scheduler(optimizer, step_size, gamma)
-            
-        #Using more than one GPU
-        ######################################
-        if torch.cuda.device_count() > 1:
-            print("Let's use", torch.cuda.device_count(), "GPUs!")
-            #dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
-            model = nn.DataParallel(model)
-
-        model = model.to(self.get_device())
-        #####################################
-        data.open_file_data(net_name, lr, drop_rate)
-        for epoch in range(num_epochs):
-            self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
-            self.log.log('-' * 10, 'l')
-            last_phase = ''
-            # Each epoch has a training and validation phase
-            for phase in self.folder_names[:2]:
-                if phase ==  self.folder_names[0]:
-                    scheduler.step()
-                    model.train()  # Set model to training mode
-                else:
-                    model.eval()   # Set model to evaluate mode
-
-                running_loss = 0.0
-                running_corrects = 0
-
-                # Iterate over data.
-                for i, sample in enumerate(dataloaders[phase]):
-                    (inputs, labels),(filename,_) = sample
-                    
-                    inputs = inputs.to(self.get_device())
-                    labels = labels.to(self.get_device())
-                    #print(inputs.shape)
-
-                    # zero the parameter gradients
-                    optimizer.zero_grad()
-                    alpha = 0.5
-
-                    # forward
-                    # track history if only in train
-                    with torch.set_grad_enabled(phase ==  self.folder_names[0]):
-                        outputs = model(inputs)
-
-                        _, preds = torch.max(outputs, 1)
-                        loss = criterion(outputs, labels)   
-                        #loss = center_loss(outputs, labels)*alpha + criterion(outputs, labels)  
-
-                        # backward + optimize only if in training phase
-                        if phase ==  self.folder_names[0]:
-                            loss.backward()
-                            #for param in center_loss.parameters():
-                             #   param.grad.data *= (1./alpha)
-                            optimizer.step()
-
-                    # statistics
-                    running_loss += loss.item() * inputs.size(0)
-                    running_corrects += torch.sum(preds == labels.data)
-
-
-                epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / dataset_sizes[phase]
-                
-                #if phase == 'train':
-                    #loss = {'Acc':epoch_acc, 'Loss':epoch_loss}
-                    #vis.plot_combine('Combine Plot',loss)
-                content = '{} {:.4f} {:.4f}'.format(epoch, epoch_loss, epoch_acc)
-                close = False
-                if(epoch == num_epochs - 1):
-                    close = True
-                data.save_data_training(phase, content, close)
-                self.log.log('{} Loss: {:.4f} Acc: {:.4f}'.format(
-                    phase, epoch_loss, epoch_acc), 'v')
-
-                # deep copy the model
-                if phase ==  self.folder_names[1] and epoch_acc > best_acc:
-                    best_acc = epoch_acc
-                    best_model_wts = copy.deepcopy(model.state_dict())
-                
-                last_phase = phase
-                
-            if(last_phase == self.folder_names[1]):
-                if (self.earlier_stop(epoch_loss)):
-                        break
-
-            print()
-        print()
-        time_elapsed = time.time() - since
-        self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
-            time_elapsed // 60, time_elapsed % 60), 'v')
-        self.log.log('Best val Acc: {:4f}'.format(best_acc), 'v')
-
-        # load best model weights
-        model.load_state_dict(best_model_wts)
-        return model

@@ -12,7 +12,7 @@ import torch.nn as nn
 
 def setup(args):
     #Init Log
-    data_log = DataLogger()
+    data_log = DataLogger(args.save_dir)
     data_log.log("Init training code...", 'l')
     
     list_of_name_folders = ['train_diatoms_3_class_simulate_all','val_diatoms_3_class_simulate_all', 'test_diatoms_3_class']
@@ -84,7 +84,7 @@ def setup(args):
 
 def get_learning_rate(args, network_name):
     if args.exponential_range is not None:
-        return 10**random.uniform(args.exponential_range[0], args.exponential_min[1])
+        return 10**random.uniform(args.exponential_range[0], args.exponential_range[1])
     if args.new_lr:
         return args.lr
     else:
@@ -95,34 +95,11 @@ def get_learning_rate(args, network_name):
         elif(network_name == "Densenet169"):
             return 2.6909353460670058e-05
         
-def show_reconstruction(model, test_loader, n_images, args, network_name):
-    import matplotlib.pyplot as plt
-    from utils import combine_images
-    from utils import plot_log
-    from PIL import Image
-    import numpy as np
-    from torch.autograd import Variable
-
-    model.eval()
-    for sample in test_loader:
-        (x, labels),(filename,_) = sample
-        x = Variable(x[:min(n_images, x.size(0))].cuda(), volatile=True)
-        x_recon = model(x)
-        data = np.concatenate([x.data, x_recon.data])
-        img = combine_images(np.transpose(data, [0, 2, 3, 1]))
-        image = img * 255
-        Image.fromarray(image.astype(np.uint8)).save(args.save_dir + "/" + network_name + "/real_and_recon.png")
-        print()
-        print('Reconstructed images are saved to %s/real_and_recon.png' % args.save_dir)
-        print('-' * 70)
-        plt.imshow(plt.imread(args.save_dir + "/" + network_name + "/real_and_recon.png", ))
-        plt.show()
-        break
         
 def train(args):
     data_log, list_of_name_folders, data_transforms, device = setup(args)
     data_log.log("Starting training", 'l')
-    for network_name in args.network_name_list:
+    for network_name in args.network_name:
 
         data = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device)
         image_datasets = data.get_all_image_datasets()
@@ -133,9 +110,10 @@ def train(args):
         best_accuracy_old = 0
         drop_rate = 0
         count = 0
-        lr = get_learning_rate(args, network_name)
+        
         loss_function = args.loss_function
-        for count in range(args.range):      
+        for count in range(args.range):  
+            lr = get_learning_rate(args, network_name)
             params = {
                 'lr' : lr,
                 'momentum' : args.lr_decay,
@@ -164,14 +142,15 @@ def train(args):
 
             model_ft = ModelClass(model_name=network_name, channels=3, feature_extract=feature_extract, num_of_layers=num_of_layers, use_pretrained=True, folder_names = list_of_name_folders, log = data_log, drop_rate = drop_rate)
             model = model_ft.get_model()
+            #print(model)
             
             # train or test
             if args.weights is not None:  # init the model weights with provided one
                 #best_model = model.load_state_dict(torch.load(args.weights))
                 best_model = torch.load(args.weights)
             if not args.testing:
-                best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data)
-                model_ft.save_model(best_model, 'results/'+network_name+'/all_lr_'+ str(lr)+'_drop_'+str(drop_rate)+'.pt')
+                best_model = model_ft.train_model(model, dataloaders, params, dataset_size, data, args)
+                model_ft.save_model(best_model, args.save_dir + '/'+network_name+'/all_lr_'+ str(lr)+'_drop_'+str(drop_rate)+'.pt')
             else:  # testing
                 if args.weights is None:
                     print('No weights are provided. Will test using random initialized weights.')
@@ -185,16 +164,15 @@ def train(args):
             #visual = ImageVisualizer(list_of_name_folders, mean, std)
             #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)
         data_log.log("Close Log", 'l')
-
+    
 if __name__ == "__main__":
     import argparse
     import os
     
     # setting the hyper parameters
     parser = argparse.ArgumentParser(description="Diatoms Research CNR-ISASI")
-    parser.add_argument('--network_name_list', nargs='+',
-                       help="Insert the network name list for trainning, e.g. --network_name_list Resnet18 Densenet169")
-    #parser.add_argument('--network_name', default='Densenet169')
+    parser.add_argument('--network_name', nargs='+',
+                       help="Insert the network name for trainning, e.g. --network_name Resnet18 : Could be one list")
     parser.add_argument('--new_lr', action='store_true',
                        help="If not setted will be used the lr already found!")
     parser.add_argument('--range', default=1, type=int,
@@ -207,7 +185,7 @@ if __name__ == "__main__":
                        help="Size of the batch")
     parser.add_argument('--lr', default=0.0001, type=float,
                         help="Initial learning rate")
-    parser.add_argument('--loss_function', default = 'cross_validation'
+    parser.add_argument('--loss_function', default = 'cross_validation',
                        help="Which will be loss function used? Cross Validation (default), Center Loss or both")
     parser.add_argument('--lr_decay', default=0.9, type=float,
                         help="The value multiplied by lr at each epoch. Set a larger value for larger epochs")
@@ -219,14 +197,18 @@ if __name__ == "__main__":
                         help="Test the trained model on testing dataset")
     parser.add_argument('-w', '--weights', default=None,
                         help="The path of the saved weights. Should be specified when testing")
+    parser.add_argument('--plot', action='store_true', help="whether to plot features for every epoch")
+    
     args = parser.parse_args()
     print(args)
     
-    for network_name in args.network_name_list:
-        if not os.path.exists(args.save_dir+'/'+network_name):
-            os.makedirs(args.save_dir+'/'+network_name)
+    for net_name in args.network_name:
+        if not os.path.exists(args.save_dir+'/'+net_name):
+            os.makedirs(args.save_dir+'/'+net_name)
     
     train(args)
+
+
     
     
     

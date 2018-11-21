@@ -1,7 +1,7 @@
 class DataLogger:
     
-    def __init__(self):
-        self.file_log = open('results/log.csv','w')
+    def __init__(self, dir):
+        self.file_log = open(dir + 'log.txt','w')
     
     def log(self, content, log, close = False):
         if(log == 'l'):
@@ -15,3 +15,5 @@ class DataLogger:
             self.file_log.write("----> {}\n".format(content))
         if close:
             self.file_log.close()
+            
+            

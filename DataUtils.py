@@ -14,7 +14,7 @@ import math
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 4, net_name='', device=None):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 0, net_name='', device=None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
@@ -47,9 +47,9 @@ class DataUtils():
                for x in self.list_of_name_folders}
         return dataloaders
     
-    def open_file_data(self, net_name, lr, drop_rate):
-            file_train = open('results/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_train.dat','w')
-            file_val = open('results/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_val.dat','w')
+    def open_file_data(self, folder, net_name, lr, drop_rate):
+            file_train = open(folder+'/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_train.dat','w')
+            file_val = open(folder+'/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_val.dat','w')
             self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
             
     
