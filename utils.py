@@ -1,3 +1,7 @@
+import csv
+import numpy as np
+from matplotlib import pyplot as plt
+
 def plot_log(filename, show=True):
     # load data
     keys = []
@@ -61,4 +65,4 @@ def combine_images(generated_images):
 
 
 if __name__=="__main__":
-    plot_log('result/log.csv')
+    plot_log('results/log.csv')

@@ -11,6 +11,7 @@ import copy
 from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
 import keyboard
+import csv
 
 class ModelClass():
     
@@ -21,16 +22,6 @@ class ModelClass():
         self.use_pretrained = use_pretrained
         self.num_of_layers = num_of_layers
         self.drop_rate = drop_rate
-        if(device == None):
-            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = device
-            
-        if (folder_names == None):
-            self.folder_names = ['train_diatoms_3_class','val_diatoms_3_class']
-        else:
-            self.folder_names = folder_names
-            
         self.channels = channels
         self.model_ft = None
         self.log = log
@@ -38,6 +29,19 @@ class ModelClass():
         self.best_loss = 1000
         self.cont_to_stop = 0
         self.num_of_features = 0
+        
+        
+        if(device == None):
+            self.device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = device
+            
+        if (folder_names == None):
+            self.folder_names = ['train','val']
+        else:
+            self.folder_names = folder_names
+            
+        
         
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
@@ -57,6 +61,21 @@ class ModelClass():
                 self.model_ft.conv1 = new_features[0]
             input_size = 244
                
+        elif model_name == "Resnet101":
+            print("[!] Using Resnet50 model")
+            self.model_ft = models.resnet101(pretrained=use_pretrained)
+            self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
+            self.num_of_features = self.model_ft.fc.in_features
+            self.model_ft.fc = nn.Linear(self.num_of_features, num_classes)
+            if (self.channels == 1):
+                new_features = self.model_ft.features[0]
+                pretrained_weights = new_features.weight
+                layer_conv_1 = nn.Conv2d(1, 64, kernel_size=7, stride=2)
+                # For M-channel weight should randomly initialized with Gaussian
+                new_features.weight.data.normal_(0, 0.001)
+                # For RGB it should be copied from pretrained weights
+                #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
+            input_size = 244
         elif model_name == "Resnet50":
             print("[!] Using Resnet50 model")
             self.model_ft = models.resnet50(pretrained=use_pretrained)
@@ -187,6 +206,9 @@ class ModelClass():
             return nn.Softmax()
         elif loss_function == 'cross_entropy':
             return nn.CrossEntropyLoss()
+        else:
+            print('Please, what is the loss function?')
+            exit(0)
     
     def get_optimization(self, model, lr, momentum):
             return optim.SGD(model.parameters(), lr=lr, momentum=momentum)
@@ -219,7 +241,7 @@ class ModelClass():
     
     def earlier_stop(self, loss):
         #print(self.best_loss, loss)
-        if(self.best_loss < loss):
+        if(self.best_loss <= loss):
             self.cont_to_stop += 1
         else:
             self.best_loss = loss
@@ -231,13 +253,17 @@ class ModelClass():
         return False
             
     
-    def train_model(self, model, dataloaders, params, dataset_sizes, data, args):
+    def train_model(self, model, dataloaders, params, data, args):
         since = time.time()
         isKfoldMethod = False
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
         if args.plot:
             all_features, all_labels = [], []
+        
+        logfile = open(args.save_dir + '/'+self.model_name+'/lr_'+str(params['lr'])+'/log.csv', 'w')
+        logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
+        logwriter.writeheader()
         
         #Get parameters of training
         lr = params['lr']
@@ -249,6 +275,7 @@ class ModelClass():
         net_name = params['net_name']
         drop_rate = params['drop_rate']
         loss_function = params['loss_function']
+        lr_center_loss = params['lr_center_loss']
 
         #Setting parameters of training
         if(loss_function == 'cross_entropy' or loss_function=='softmax'):
@@ -271,26 +298,39 @@ class ModelClass():
 
         model = model.to(self.get_device())
         #####################################
+        import progressbar
+        
         data.open_file_data(args.save_dir, net_name, lr, drop_rate)
         for epoch in range(num_epochs):
+            folder_epoch = args.save_dir + '/'+self.model_name+'/lr_'+ str(lr)+'/epochs/epoch_'+str(epoch)+'.pt'
+            since_epoch = time.time()
             #os.system('cls' if os.name == 'nt' else 'clear')
             c_print = ''
             #self.log.log('Epoch {}/{}'.format(epoch, num_epochs - 1), 'l')
             
             last_phase = ''
+            train_loss = 0
             # Each epoch has a training and validation phase
-            for phase in self.folder_names[:2]:
+
+            for phase in ['train', 'val']  :
                 if phase ==  self.folder_names[0]:
                     scheduler.step()
                     model.train()  # Set model to training mode
                 else:
                     model.eval()   # Set model to evaluate mode
-
-                running_loss = 0.0
+                
+                
+                bar = progressbar.ProgressBar(maxval=len(dataloaders[phase]), \
+                        widgets=[progressbar.Bar('=', '[', ']'), ' ', progressbar.Percentage()])
+                bar.start()
+                
                 running_corrects = 0
-
+                training_loss = 0.0
+                running_loss = 0.0
+                print_batch = 1
                 # Iterate over data.
-                for i, sample in enumerate(dataloaders[phase]):                                                                                                                                                                                                                                                                                                                                                             
+                for i, sample in enumerate(dataloaders[phase]):  
+                    bar.update(i+1)
                     (inputs, labels),(filename,_) = sample
                     
                     inputs = inputs.to(self.get_device())
@@ -299,8 +339,8 @@ class ModelClass():
 
                     # zero the parameter gradients
                     optimizer.zero_grad()
-                    alpha = 0.003
-                    lr_cent = 0.5
+                    alpha = 0.5
+                    lr_cent = lr_center_loss
 
                     # forward
                     # track history if only in train
@@ -326,44 +366,51 @@ class ModelClass():
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
                     
-                    if args.plot:
-                        all_features.append(features)
-                        all_labels.append(labels.data.cpu().numpy())
-                            
-                if args.plot:
-                    all_features = np.concatenate(all_features, 0)
-                    all_labels = np.concatenate(all_labels, 0)
-                    plot_features(all_features, all_labels, num_classes, epoch, prefix='train')
-
-                epoch_loss = running_loss / dataset_sizes[phase]
-                epoch_acc = running_corrects.double() / dataset_sizes[phase]
                 
+                dataset_size = len(dataloaders[phase]) * args.batch_size
+                bar.finish()
+                
+                epoch_loss = running_loss / dataset_size
+                epoch_acc = running_corrects.double() / dataset_size
+                
+                             
                 #if phase == 'train':
                     #loss = {'Acc':epoch_acc, 'Loss':epoch_loss}
                     #vis.plot_combine('Combine Plot',loss)
-                
-                if phase == self.folder_names[0]:
-                    c_print = 'Epoch {}/{} : train_loss = {:.4f}, train_acc = {:.4f}'.format(epoch, num_epochs, epoch_loss, epoch_acc)
-                else:
-                    c_print = c_print + ', val_loss = {:.4f}, val_acc = {:.4f}'.format(epoch_loss, epoch_acc)
-                    self.log.log(c_print, 'v')
+                    
+                                    
                 content = '{} {:.4f} {:.4f}'.format(epoch, epoch_loss, epoch_acc)
                 close = False
                 if(epoch == num_epochs - 1):
                     close = True
                 data.save_data_training(phase, content, close)
                 
+                
+                if phase == self.folder_names[0]:
+                    c_print = 'Epoch {}/{} : train_loss = {:.4f}, train_acc = {:.4f}'.format(epoch, num_epochs, epoch_loss, epoch_acc)
+                    train_loss, train_acc = epoch_loss, epoch_acc
+                else:
+                    time_elapsed_epoch = time.time() - since_epoch
+                    c_print = c_print + ', val_loss = {:.4f}, val_acc = {:.4f}, Time: {:.0f}m {:.0f}s'.format(epoch_loss, epoch_acc, time_elapsed_epoch // 60, time_elapsed_epoch % 60)
+                    self.log.log(c_print, 'v')
+                    logwriter.writerow(dict(epoch=epoch, loss=train_loss,
+                                    val_loss=epoch_loss, val_acc=epoch_acc.item()))
+  
 
-                # deep copy the model
+                    # deep copy the model
                 if phase ==  self.folder_names[1] and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
                 
                 last_phase = phase
+                
+                self.save_model(model, folder_epoch)
 
+            
             if(last_phase == self.folder_names[1]):
                 if (self.earlier_stop(epoch_loss)):
                         break
+            
            
             #if keyboard.is_pressed('q'):#if key 'q' is pressed 
              #   print('Stopping this training...')
@@ -372,6 +419,7 @@ class ModelClass():
             #    pass
 
             #print()
+        logfile.close()
         print()
         time_elapsed = time.time() - since
         self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
@@ -404,16 +452,16 @@ class ModelClass():
         plt.savefig(save_name, bbox_inches='tight')
         plt.close()
     
-    def test_model(self, model, dataloaders, folder_name, data):
+    def test_model(model, dataloaders, folder_name, data, device, log):
         import csv
         #logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
         #logwriter.writeheader()
         
         was_training = model.training
         model.eval()
-        correct = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
-        incorrect = torch.zeros([1, 50], dtype=torch.int32, device = self.device)
-        results = torch.zeros([50, 50], dtype=torch.int32, device = self.device)
+        correct = torch.zeros([1, 50], dtype=torch.int32, device = device)
+        incorrect = torch.zeros([1, 50], dtype=torch.int32, device = device)
+        results = torch.zeros([50, 50], dtype=torch.int32, device = device)
         image_incorrect = [{}]
         
         cont_correct = 0
@@ -421,28 +469,31 @@ class ModelClass():
         correct_class = 0
 
         with torch.no_grad():      
-            for i, sample in enumerate(dataloaders[folder_name]):
+            for i, sample in enumerate(dataloaders['test']):
                 (inputs, labels),(filename,_) = sample
                 
                 #inputs = inputs.to(self.device)
                 #labels = labels.to(self.device)
                 
-                class_names = data.get_all_image_datasets()[folder_name].classes
+                class_names = data.get_image_datasets().classes
                 
                 labels = [int(class_names[l.item()]) for l in labels]
+               
                 correct_class = np.array(list(set(np.array(labels))))
-
+                
                 outputs = model(inputs)
                 #print(outputs)
                 _, preds = torch.max(outputs, 1)
-                
-                preds = [int(class_names[l.item()]) for l in preds]
+                print(preds)
+                print(labels)
+
+                #preds = [int(class_names[l.item()]) for l in preds]
                 #print(preds)
-                self.log.log("F1 SOCRE:", 'l')
-                self.log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
-                self.log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
-                self.log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
-                self.log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
+                log.log("F1 SOCRE:", 'l')
+                log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
+                log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
+                log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
+                log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
                 
                                   
                 for k in range(len(labels)):

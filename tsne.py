@@ -17,8 +17,8 @@ from PIL import Image
 from DiatomsDataset import DiatomsDataset
 import torch
 
-list_of_name_folders = ['test_diatoms_3_class_simulate','test_diatoms_3_class']
-data_dir = '../data'
+list_of_name_folders = ['train_diatoms_3_class_simulate_all','test_diatoms_3_class']
+data_dir = '../data/Dataset_4'
 #diatoms = datasets.load_diatoms(n_class=6)
 
 data_transforms = {
@@ -26,8 +26,8 @@ data_transforms = {
         transforms.CenterCrop(224),
         transforms.Resize(30),
         transforms.CenterCrop(25),
-        #transforms.Grayscale(1),
-        #transforms.ToTensor(),
+        transforms.Grayscale(1),
+        transforms.ToTensor(),
         #transforms.Normalize([0.5017443],[0.09787486])
         #transforms.Normalize([0.5017639, 0.5017639, 0.5017639],[0.08735436, 0.08735436, 0.08735436])
         #transforms.Normalize([0.493], [0.085])
@@ -36,8 +36,8 @@ data_transforms = {
         transforms.CenterCrop(224),
         transforms.Resize(30),
         transforms.CenterCrop(25),
-        #transforms.Grayscale(1),
-        #transforms.ToTensor(),
+        transforms.Grayscale(1),
+        transforms.ToTensor(),
         #transforms.Normalize([0.5017443],[0.09787486])
         #transforms.Normalize([0.5017639, 0.5017639, 0.5017639],[0.08735436, 0.08735436, 0.08735436])
         #transforms.Normalize([0.493], [0.085])
@@ -57,8 +57,8 @@ data_show = {
     ])
 }
 
-diatoms = DiatomsDataset(list_of_name_folders[0], data_dir)
-diatoms_simulate = DiatomsDataset(list_of_name_folders[1], data_dir)
+diatoms = DiatomsDataset(list_of_name_folders[0], data_dir, data_transforms)
+diatoms_simulate = DiatomsDataset(list_of_name_folders[1], data_dir, data_transforms)
 #toTensor = transforms.ToTensor()
 transformToPILImage = transforms.ToPILImage()
 
@@ -67,36 +67,32 @@ transformToPILImage = transforms.ToPILImage()
 #X = [data_transforms['train_'](diatoms[x]['image']) for x in range(len(diatoms))]
 #y = [diatoms[x]['diatoms'] for x in range(len(diatoms))]
 qtd_of_imgs = len(diatoms) + len(diatoms_simulate)
-print(qtd_of_imgs)
 X1=np.zeros((qtd_of_imgs,25*25))
 y=np.zeros((qtd_of_imgs,))
 cont = 0
 
-for i in range(len(diatoms)):
-    #rand = random.randrange(0,len(diatoms))
-    x = data_transforms[list_of_name_folders[0]](diatoms[i]['image'])
+#X1 = [sample['image'] for (i, sample) in enumerate(diatoms)]
+
+for (i, sample) in enumerate(diatoms):    
+    X1[i]=sample['image'].reshape(1,-1)
+    y[i]=sample['diatoms']
     
-    a = np.zeros(len(x.getdata()))
+for (i, sample) in enumerate(diatoms_simulate):
+    X1[len(diatoms)+i]=sample['image'].reshape(1,-1)
+    y[len(diatoms)+i]=sample['diatoms']
 
-    for j in range(len(x.getdata())):
-        a[j] = x.getdata()[j][0]/255
-    #print(x)
-    
-    X1[i]=a.reshape(1,-1)  
-    y[i]=diatoms[i]['diatoms']
+#for i in range(len(diatoms_simulate)):
+#    #rand = random.randrange(0,len(diatoms))
+#    x = data_transforms[list_of_name_folders[1]](diatoms_simulate[i]['image'])
+#    a = np.zeros(len(x.getdata()))
 
-for i in range(len(diatoms_simulate)):
-    #rand = random.randrange(0,len(diatoms))
-    x = data_transforms[list_of_name_folders[1]](diatoms_simulate[i]['image'])
-    a = np.zeros(len(x.getdata()))
-
-    for j in range(len(x.getdata())):
-        a[j] = x.getdata()[j][0]/255
+#    for j in range(len(x.getdata())):
+#        a[j] = x.getdata()[j][0]/255
     #x = list(x.getdata())
     #x = np.array(x)
     #X1[len(diatoms)+i]=x.numpy().reshape(1,-1)    
-    X1[len(diatoms)+i]=a.reshape(1,-1)
-    y[len(diatoms)+i]=diatoms_simulate[i]['diatoms']
+#    X1[len(diatoms)+i]=a.reshape(1,-1)
+#    y[len(diatoms)+i]=diatoms_simulate[i]['diatoms']
 
 #Xd = diatoms.data
 #yd = diatoms.target
@@ -132,7 +128,7 @@ def plot_embedding(X, title=None):
                 continue
             shown_images = np.r_[shown_images, [X[i]]]
             if(i < len(diatoms)):
-            	x = data_show['data_show'](diatoms[i]['image'])
+            	x = data_show['data_show'](diatoms['image'])
             else:
             	x = data_show['data_show'](diatoms_simulate[i - len(diatoms)]['image'])
             

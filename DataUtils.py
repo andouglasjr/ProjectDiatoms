@@ -11,46 +11,80 @@ from ImageFolderDiatoms import ImageFolderDiatoms
 from DiatomsDataset import DiatomsDataset
 import csv
 import math
+from torch.utils.data.sampler import SubsetRandomSampler
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 0, net_name='', device=None):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 0, net_name='', device=None, phase='train'):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
         self.data_dir = data_dir
-        if transformations == None:
-            self.image_datasets = {x: ImageFolderDiatoms(os.path.join(data_dir, x)) for x in self.list_of_name_folders}
+        self.folder_split = ['train', 'val']
+        if(phase == 'train'):
+            self.images_dataset = ImageFolderDiatoms(os.path.join(data_dir, self.list_of_name_folders[0]), transformations[self.list_of_name_folders[0]], number_by_class = 21000)
         else:
-            self.image_datasets = {x: ImageFolderDiatoms(os.path.join(data_dir, x), 
-                                                           transformations[x]) for x in self.list_of_name_folders}
+            self.images_dataset = ImageFolderDiatoms(os.path.join(data_dir, self.list_of_name_folders[1]), transformations[self.list_of_name_folders[1]])
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.num_workers = num_workers
         self.device = device
-        
-        #init results files
         self.net_name = net_name       
         
         
-    def get_all_image_datasets(self):
-        return self.image_datasets
+    def get_image_datasets(self):
+        return self.images_dataset
     
     def get_one_image_dataset(self, name_dir):
-        return self.image_datasets[name_dir]
+        return self.images_dataset[name_dir]
     
     def get_dataset_size(self):
-        return {x: len(self.image_datasets[x]) for x in self.list_of_name_folders}
+        return len(self.images_dataset) 
     
-    def load_data(self, image_datasets):
-        dataloaders = {x: torch.utils.data.DataLoader(image_datasets[x], batch_size = self.batch_size, 
-                                                      shuffle = self.shuffle, num_workers = self.num_workers) 
-               for x in self.list_of_name_folders}
+    def load_data(self, validation_split = .2, dataset_name = 'train'):
+        if(dataset_name == 'train'):
+            dataset = self.images_dataset
+            batch_size = self.batch_size
+            shuffle_dataset = True
+            random_seed= 42
+            size_dataset_used = 0.01 #Number of dataset training images that will be used (in percentage) 
+            
+            # Creating data indices for training and validation splits:
+            dataset_size = len(dataset)
+            print(dataset_size)
+            indices = list(range(dataset_size))
+            
+            np.random.seed(random_seed)
+            np.random.shuffle(indices)
+            
+            #if size_dataset_used > 0:    
+            #    new_split = int(np.floor(dataset_size * size_dataset_used))
+            #    indices = indices[:new_split]
+            #    dataset_size = len(indices)
+                
+            split = int(np.floor(validation_split * dataset_size))
+            train_indices, val_indices = indices[split:], indices[:split]
+
+            # Creating PT data samplers and loaders:
+            train_sampler = SubsetRandomSampler(train_indices)
+            valid_sampler = SubsetRandomSampler(val_indices)
+
+            train_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, 
+                                                       sampler=train_sampler, num_workers=2)
+            validation_loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size,
+                                                            sampler=valid_sampler, num_workers=2)
+            dataloaders = {'train' : train_loader, 'val' : validation_loader}
+            print("Already loaded all pictures!")
+        elif(dataset_name == 'test'):
+            test_loader = torch.utils.data.DataLoader(self.images_dataset, batch_size=self.batch_size)
+            dataloaders = {'test' : test_loader}
+
+            
         return dataloaders
     
     def open_file_data(self, folder, net_name, lr, drop_rate):
-            file_train = open(folder+'/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_train.dat','w')
-            file_val = open(folder+'/'+net_name+'/'+str(lr)+'_drop_'+str(drop_rate)+'_data_val.dat','w')
-            self.results_files = {self.list_of_name_folders[0] : file_train, self.list_of_name_folders[1] : file_val}
+            file_train = open(folder+'/'+net_name+'/lr_'+str(lr)+'/data_train.dat','w')
+            file_val = open(folder+'/'+net_name+'/lr_'+str(lr)+'/data_val.dat','w')
+            self.results_files = {'train' : file_train, 'val' : file_val}
             
     
     def save_data_training(self, phase, content, close = False):
@@ -146,6 +180,46 @@ class DataUtils():
         return torch.from_numpy(pop_mean), torch.from_numpy(pop_std0)
     
 
+if __name__ == "__main__":
     
     
-        
+    list_of_name_folders = ['train_diatoms_3_class_simulate_all','val_diatoms_3_class_simulate_all', 'test_diatoms_3_class']
+    mean, std = [0.5018, 0.5018, 0.5018],[0.0837, 0.0837, 0.0837]
+    
+    data_transforms = {
+        list_of_name_folders[0]: transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandomRotation(180),
+            #transforms.Grayscale(1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+            #transforms.Normalize([0.493], [0.085])
+        ]),
+        list_of_name_folders[1]: transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            #transforms.Grayscale(1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+            #transforms.Normalize([0.496], [0.07])
+        ]),
+         list_of_name_folders[2]: transforms.Compose([
+            transforms.Resize(256),
+            transforms.CenterCrop(224),
+            #transforms.Grayscale(1),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std)
+            #transforms.Normalize([0.496], [0.07])
+        ])
+    }
+    
+    data_dir = '../data/Dataset_4'
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    
+    data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = 'Resnet50', device = device)
+    dataloaders = data.load_data(data.images_dataset)
+    print(len(dataloaders['train']))
+    
+    

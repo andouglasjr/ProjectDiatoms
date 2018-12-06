@@ -24,12 +24,14 @@ class DiatomsDataset():
         return len(self.diatoms_dataset)
     
     def __getitem__(self, idx):
-        diatoms_data = self.diatoms_dataset[idx]
-        image = diatoms_data[0]
-        sample = {'image': image, 'diatoms': self.vector_transform[diatoms_data[1]], 'file_name' : diatoms_data[2]}
-        
+        diatoms_data_image, diatoms_data_name = self.diatoms_dataset[idx]
+        image_transformed = diatoms_data_image[0]
         if self.transform:
-            sample['image'] = self.transform[self.file](sample['image'])
+             image_transformed = self.transform[self.file](image_transformed)
+            
+        sample = {'image': image_transformed, 'diatoms': self.vector_transform[diatoms_data_image[1]], 'file_name' : diatoms_data_name[0]}
+        
+        
         
         return sample
             

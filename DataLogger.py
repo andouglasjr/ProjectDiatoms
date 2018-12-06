@@ -1,7 +1,7 @@
 class DataLogger:
     
-    def __init__(self, dir):
-        self.file_log = open(dir + 'log.txt','w')
+    def __init__(self, args):
+        self.file_log = open(args.save_dir + '/' + args.network_name[0] + '/lr_log.txt','w')
     
     def log(self, content, log, close = False):
         if(log == 'l'):
