@@ -1,6 +1,6 @@
 import csv
 import numpy as np
-from matplotlib import pyplot as plt 
+from matplotlib import pyplot as plt
 
 def plot_log(filename, show=True):
     # load data
@@ -20,9 +20,10 @@ def plot_log(filename, show=True):
 
         values = np.reshape(values, newshape=(-1, len(keys)))
 
-    fig = plt.figure(figsize=(4,6))
+    fig = plt.figure()
     fig.subplots_adjust(top=0.95, bottom=0.05, right=0.95)
-    fig.add_subplot(211)
+    fig.add_subplot(121)
+
     epoch_axis = 0
     for i, key in enumerate(keys):
         if key == 'epoch':
@@ -32,14 +33,23 @@ def plot_log(filename, show=True):
     for i, key in enumerate(keys):
         if key.find('loss') >= 0:  # loss
             print(values[:, i])
-            plt.plot(values[:, epoch_axis], values[:, i], label=key)
+            if (key == 'loss'):
+            	label = 'Training Loss' 
+            else: 
+            	label = 'Validation Loss'
+            plt.plot(values[:, epoch_axis], values[:, i], label=label, linewidth=2.0)
     plt.legend()
-    plt.title('Training loss')
+    plt.grid()
+    plt.title('Loss Function')
 
-    fig.add_subplot(212)
+    fig.add_subplot(122)
     for i, key in enumerate(keys):
         if key.find('acc') >= 0:  # acc
-            plt.plot(values[:, epoch_axis], values[:, i], label=key)
+        	if (key == 'train_acc'):
+        		label = 'Training Acc'
+        	else:
+        		label = 'Validation Acc'
+        	plt.plot(values[:, epoch_axis], values[:, i], label=label, linewidth=2.0)
     plt.legend()
     plt.grid()
     plt.title('Accuracy')
@@ -65,4 +75,5 @@ def combine_images(generated_images):
 
 
 if __name__=="__main__":
-    plot_log('results/log.csv')
+    plot_log('log_resnet_101_50_classes.csv')
+
