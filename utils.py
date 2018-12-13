@@ -1,6 +1,6 @@
 import csv
 import numpy as np
-from matplotlib import pyplot as plt
+from matplotlib import pyplot as plt 
 
 def plot_log(filename, show=True):
     # load data

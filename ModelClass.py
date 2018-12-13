@@ -8,6 +8,7 @@ import os
 import sys
 import time
 import copy
+import utils
 from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
 import keyboard
@@ -251,6 +252,10 @@ class ModelClass():
             self.log.log('Loss is not falling down! Stopping this training...', 'l')
             return True
         return False
+    
+    def get_lr(self, optimizer):
+        for param_group in optimizer.param_groups:
+            return param_group['lr']
             
     
     def train_model(self, model, dataloaders, params, data, args):
@@ -276,6 +281,9 @@ class ModelClass():
         drop_rate = params['drop_rate']
         loss_function = params['loss_function']
         lr_center_loss = params['lr_center_loss']
+        
+        lr_batch = []
+        loss_batch = []
 
         #Setting parameters of training
         if(loss_function == 'cross_entropy' or loss_function=='softmax'):
@@ -329,14 +337,13 @@ class ModelClass():
                 running_loss = 0.0
                 print_batch = 1
                 # Iterate over data.
-                for i, sample in enumerate(dataloaders[phase]):  
+                for i, sample in enumerate(dataloaders[phase]):
                     bar.update(i+1)
-                    (inputs, labels),(filename,_) = sample
                     
+                    (inputs, labels),(filename,_) = sample
                     inputs = inputs.to(self.get_device())
                     labels = labels.to(self.get_device())
-                    #print(inputs.shape)
-
+                    
                     # zero the parameter gradients
                     optimizer.zero_grad()
                     alpha = 0.5
@@ -344,9 +351,8 @@ class ModelClass():
 
                     # forward
                     # track history if only in train
-                    with torch.set_grad_enabled(phase ==  self.folder_names[0]):
+                    with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(inputs)
-
                         _, preds = torch.max(outputs, 1)
                         if(loss_function == 'cross_entropy' or loss_function=='softmax'):
                             loss = criterion(outputs, labels) 
@@ -355,7 +361,7 @@ class ModelClass():
                             optimizer.zero_grad()
 
                         # backward + optimize only if in training phase
-                        if phase ==  self.folder_names[0]:
+                        if phase ==  'train':
                             loss.backward()
                             if(loss_function == 'center_loss'):
                                 for param in center_loss.parameters():
@@ -365,19 +371,12 @@ class ModelClass():
                     # statistics
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
-                    
                 
                 dataset_size = len(dataloaders[phase]) * args.batch_size
                 bar.finish()
                 
                 epoch_loss = running_loss / dataset_size
                 epoch_acc = running_corrects.double() / dataset_size
-                
-                             
-                #if phase == 'train':
-                    #loss = {'Acc':epoch_acc, 'Loss':epoch_loss}
-                    #vis.plot_combine('Combine Plot',loss)
-                    
                                     
                 content = '{} {:.4f} {:.4f}'.format(epoch, epoch_loss, epoch_acc)
                 close = False
@@ -385,8 +384,7 @@ class ModelClass():
                     close = True
                 data.save_data_training(phase, content, close)
                 
-                
-                if phase == self.folder_names[0]:
+                if phase == 'train':
                     c_print = 'Epoch {}/{} : train_loss = {:.4f}, train_acc = {:.4f}'.format(epoch, num_epochs, epoch_loss, epoch_acc)
                     train_loss, train_acc = epoch_loss, epoch_acc
                 else:
@@ -396,9 +394,8 @@ class ModelClass():
                     logwriter.writerow(dict(epoch=epoch, loss=train_loss,
                                     val_loss=epoch_loss, val_acc=epoch_acc.item()))
   
-
-                    # deep copy the model
-                if phase ==  self.folder_names[1] and epoch_acc > best_acc:
+                # deep copy the model
+                if phase ==  'val' and epoch_acc > best_acc:
                     best_acc = epoch_acc
                     best_model_wts = copy.deepcopy(model.state_dict())
                 
@@ -410,15 +407,7 @@ class ModelClass():
             if(last_phase == self.folder_names[1]):
                 if (self.earlier_stop(epoch_loss)):
                         break
-            
-           
-            #if keyboard.is_pressed('q'):#if key 'q' is pressed 
-             #   print('Stopping this training...')
-             #   break#finishing the loop
-            #else:
-            #    pass
 
-            #print()
         logfile.close()
         print()
         time_elapsed = time.time() - since
@@ -452,11 +441,8 @@ class ModelClass():
         plt.savefig(save_name, bbox_inches='tight')
         plt.close()
     
-    def test_model(model, dataloaders, folder_name, data, device, log):
-        import csv
-        #logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
-        #logwriter.writeheader()
-        
+    def test_model(model, dataloaders, folder_name, data, device, log, args):
+        import csv        
         was_training = model.training
         model.eval()
         correct = torch.zeros([1, 50], dtype=torch.int32, device = device)
@@ -476,6 +462,16 @@ class ModelClass():
                 #labels = labels.to(self.device)
                 
                 class_names = data.get_image_datasets().classes
+                vector_transform = [1 ,10,11,12,13,
+                                 14,15,16,17,18,
+                                 19,2 ,20,21,22,
+                                 23,24,25,26,27,
+                                 28,29,3 ,30,31,
+                                 32,33,34,35,36,
+                                 37,38,39,4 ,40,
+                                 41,42,43,44,45,
+                                 46,47,48,49,5 ,
+                                 50, 6, 7, 8, 9]
                 
                 labels = [int(class_names[l.item()]) for l in labels]
                
@@ -484,10 +480,13 @@ class ModelClass():
                 outputs = model(inputs)
                 #print(outputs)
                 _, preds = torch.max(outputs, 1)
-                print(preds)
-                print(labels)
-
-                #preds = [int(class_names[l.item()]) for l in preds]
+                #print(preds)
+                #print(labels)
+                
+                if(int(args.classes_training) == 3):            
+                    preds = [int(class_names[l.item()]) for l in preds]
+                else:
+                    preds = [int(vector_transform[p.item()]) for p in preds]
                 #print(preds)
                 log.log("F1 SOCRE:", 'l')
                 log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')

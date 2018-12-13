@@ -15,16 +15,16 @@ from torch.utils.data.sampler import SubsetRandomSampler
 
 class DataUtils():
 
-    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 0, net_name='', device=None, phase='train'):
+    def __init__(self, list_of_name_folders, data_dir, transformations=None, batch_size = 128, shuffle = True, num_workers = 0, net_name='', device=None, phase='train', args = None):
         super(DataUtils, self).__init__()
         self.list_of_name_folders = list_of_name_folders
-        self.data_dir = data_dir
+        self.data_dir = args.data_dir
         self.folder_split = ['train', 'val']
         if(phase == 'train'):
-            self.images_dataset = ImageFolderDiatoms(os.path.join(data_dir, self.list_of_name_folders[0]), transformations[self.list_of_name_folders[0]], number_by_class = 21000)
+            self.images_dataset = ImageFolderDiatoms(os.path.join(data_dir, self.list_of_name_folders[0]), transformations[self.list_of_name_folders[0]], number_by_class = int(args.images_per_class))
         else:
             self.images_dataset = ImageFolderDiatoms(os.path.join(data_dir, self.list_of_name_folders[1]), transformations[self.list_of_name_folders[1]])
-        self.batch_size = batch_size
+        self.batch_size = args.batch_size
         self.shuffle = shuffle
         self.num_workers = num_workers
         self.device = device

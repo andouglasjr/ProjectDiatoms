@@ -96,7 +96,7 @@ def train(args):
             #best_model = model.load_state_dict(torch.load(args.weights))
             best_model = torch.load(args.weights)
         if not args.testing:
-            data = DataUtils(list_of_name_folders, args.data_dir, data_transforms, batch_size = args.batch_size, net_name = network_name, device = device)
+            data = DataUtils(list_of_name_folders, args.data_dir, data_transforms, batch_size = args.batch_size, net_name = network_name, device = device, args = args)
             data_log.log("Starting training", 'l')
             dataloaders = data.load_data()
             dataset_size = data.get_dataset_size()
@@ -120,8 +120,8 @@ def train(args):
                 params = {
                     'lr' : lr,
                     'momentum' : args.lr_decay,
-                    'step_size' : 5,
-                    'gamma' : 0.0001,
+                    'step_size' : 1,
+                    'gamma' : 0.1,
                     'set_criterion' : True,
                     'num_epochs' : args.epochs,
                     'net_name' : network_name,
@@ -157,24 +157,26 @@ def train(args):
                 model = model_ft.get_model()
                 #print(model)
 
-
                 best_model = model_ft.train_model(model, dataloaders, params, data, args)
                 model_ft.save_model(best_model, folder_best_result)
+                data_test = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device, phase = 'test', args = args)
+                dataloaders_test = data_test.load_data(dataset_name = 'test')
+                dataset_size_test = data_test.get_dataset_size()
                 
                 data_log.log("Analyzing Results to {}".format(network_name), 'l')
-                results,correct,incorrect,image_incorrect, correct_class = model_ft.test_model(best_model, dataloaders_test, list_of_name_folders[1],data)
+                results,correct,incorrect,image_incorrect, correct_class = model_ft.test_model(best_model, dataloaders_test, list_of_name_folders[1],data, args)
                 data.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect)
                 
         else:  # testing
             if args.weights is None:
                 print('No weights are provided. Will test using random initialized weights.')
             data_log.log("Analyzing Results to {}".format(network_name), 'l')
-            
-            data_test = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device, phase = 'test')
+            data_test = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device, phase = 'test', args = args)
             dataloaders_test = data_test.load_data(dataset_name = 'test')
             dataset_size_test = data_test.get_dataset_size()
             data_log.log("DataSet Size (Test: {})".format(dataset_size_test), 'v')
-            results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(best_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log)
+            
+            results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(best_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
             data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect)
             #show_reconstruction(best_model, dataloaders[list_of_name_folders[2]], 12, args, network_name)
                 
@@ -219,6 +221,8 @@ if __name__ == "__main__":
     parser.add_argument('-w', '--weights', default=None,
                         help="The path of the saved weights. Should be specified when testing")
     parser.add_argument('--plot', action='store_true', help="whether to plot features for every epoch")
+    parser.add_argument('--images_per_class', default=21000, help="how many images will be used per class")
+    parser.add_argument('--classes_training', default=50, help="how many classes there are in the training")
     
     args = parser.parse_args()
     print(args)
