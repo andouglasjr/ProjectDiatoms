@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib
 import random
 import torch.nn as nn
+import numpy as np
+np.set_printoptions(threshold=np.nan)
 
 def setup(args):
     #Init Log
@@ -96,7 +98,7 @@ def train(args):
             #best_model = model.load_state_dict(torch.load(args.weights))
             best_model = torch.load(args.weights)
         if not args.testing:
-            data = DataUtils(list_of_name_folders, args.data_dir, data_transforms, batch_size = args.batch_size, net_name = network_name, device = device, args = args)
+            data = DataUtils(device = device, args = args)
             data_log.log("Starting training", 'l')
             dataloaders = data.load_data()
             dataset_size = data.get_dataset_size()
@@ -159,7 +161,8 @@ def train(args):
 
                 best_model = model_ft.train_model(model, dataloaders, params, data, args)
                 model_ft.save_model(best_model, folder_best_result)
-                data_test = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device, phase = 'test', args = args)
+                
+                data_test = DataUtils(device = device, args = args)
                 dataloaders_test = data_test.load_data(dataset_name = 'test')
                 dataset_size_test = data_test.get_dataset_size()
                 
@@ -171,13 +174,15 @@ def train(args):
             if args.weights is None:
                 print('No weights are provided. Will test using random initialized weights.')
             data_log.log("Analyzing Results to {}".format(network_name), 'l')
-            data_test = DataUtils(list_of_name_folders, args.data_dir, data_transforms, net_name = network_name, device = device, phase = 'test', args = args)
+            
+            folder_name = ['test_diatoms_3_class']
+            data_test = DataUtils(folder_names = folder_name, device = device, args = args)
             dataloaders_test = data_test.load_data(dataset_name = 'test')
-            dataset_size_test = data_test.get_dataset_size()
+            dataset_size_test = len(data_test.images_dataset)
             data_log.log("DataSet Size (Test: {})".format(dataset_size_test), 'v')
             
             results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(best_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
-            data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect)
+            data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect, True)
             #show_reconstruction(best_model, dataloaders[list_of_name_folders[2]], 12, args, network_name)
                 
             

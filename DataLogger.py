@@ -1,3 +1,5 @@
+import numpy as np
+np.set_printoptions(threshold=np.nan)
 class DataLogger:
     
     def __init__(self, args):

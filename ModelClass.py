@@ -457,11 +457,12 @@ class ModelClass():
         with torch.no_grad():      
             for i, sample in enumerate(dataloaders['test']):
                 (inputs, labels),(filename,_) = sample
-                
+                #print(labels,filename)
                 #inputs = inputs.to(self.device)
                 #labels = labels.to(self.device)
                 
                 class_names = data.get_image_datasets().classes
+                print(class_names)
                 vector_transform = [1 ,10,11,12,13,
                                  14,15,16,17,18,
                                  19,2 ,20,21,22,
@@ -478,16 +479,25 @@ class ModelClass():
                 correct_class = np.array(list(set(np.array(labels))))
                 
                 outputs = model(inputs)
-                #print(outputs)
+                m = nn.Softmax()
+                outputs = m(outputs)
+
                 _, preds = torch.max(outputs, 1)
-                #print(preds)
-                #print(labels)
+                
+ 
                 
                 if(int(args.classes_training) == 3):            
                     preds = [int(class_names[l.item()]) for l in preds]
                 else:
                     preds = [int(vector_transform[p.item()]) for p in preds]
                 #print(preds)
+                import pandas as pd
+                df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Vector': outputs})
+                print(df)
+                writer = pd.ExcelWriter('report.xlsx')
+                df.to_excel(writer, 'Sheet1')
+                writer.save()
+                    
                 log.log("F1 SOCRE:", 'l')
                 log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
                 log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
@@ -508,6 +518,7 @@ class ModelClass():
                                                 'correct_class': labels[k], 
                                                 'image': inputs.data[k],
                                                 'filename' : filename[k]})
+                        print(preds[k], labels[k], filename[k])
                         cont_incorrect += 1
                         
                 if(i>0):
