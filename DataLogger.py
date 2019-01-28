@@ -1,9 +1,15 @@
 import numpy as np
+import os
 np.set_printoptions(threshold=np.nan)
+
+
+
 class DataLogger:
-    
     def __init__(self, args):
-        self.file_log = open(args.save_dir + '/' + args.network_name[0] + '/lr_log.txt','w')
+        folder = args.save_dir+'/'+str(args.network_name[0])+'/logs'
+        if not os.path.exists(folder):
+            os.makedirs(folder)
+        self.file_log = open(folder+'/'+str(args.time_training)+'.txt','w')
     
     def log(self, content, log, close = False):
         if(log == 'l'):

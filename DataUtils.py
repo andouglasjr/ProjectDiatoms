@@ -12,13 +12,16 @@ from DiatomsDataset import DiatomsDataset
 import csv
 import math
 from torch.utils.data.sampler import SubsetRandomSampler
+from albumentations import MotionBlur
 
 class DataUtils():
     
     _folder_names = ['train_diatoms', 'test_diatoms_3_class']
     _folder_split = ['train', 'val']
     _mean, _std = [0.5018, 0.5018, 0.5018],[0.0837, 0.0837, 0.0837]
-    _data_transforms = transforms.Compose([transforms.CenterCrop(224), 
+    _blur = MotionBlur(p=0.2)
+    _data_transforms = transforms.Compose([transforms.CenterCrop(224),
+                                           _blur(),
                                            #transforms.Grayscale(1),
                                           transforms.ToTensor(),
                                           transforms.Normalize(_mean, _std)])
@@ -30,11 +33,16 @@ class DataUtils():
         super(DataUtils, self).__init__()
         if args is None:
             print("Closing! Need some arguments!")
-            exit()
-        self.data_dir = args.data_dir
-        self.batch_size = args.batch_size
+            self.data_dir = '../data/Dataset_5/Diatom50NEW_generated'
+            self.batch_size = 256
+            self.number_by_class = 200
+            #exit()
+        else:
+            self.data_dir = args.data_dir
+            self.batch_size = args.batch_size
+            self.number_by_class = int(args.images_per_class)
+        
         self.device = device
-        self.number_by_class = int(args.images_per_class)
         self.transformations = self._data_transforms
         if transformations is not None: self.transformations = transformations
         self.folder_names = self._folder_names
@@ -54,7 +62,7 @@ class DataUtils():
             batch_size = self.batch_size
             shuffle_dataset = True
             random_seed= 42
-            size_dataset_used = 0.01 #Number of dataset training images that will be used (in percentage) 
+            size_dataset_used = 1 #Number of dataset training images that will be used (in percentage) 
             
             # Creating data indices for training and validation splits:
             dataset_size = len(dataset)
@@ -87,9 +95,14 @@ class DataUtils():
             
         return dataloaders
     
-    def open_file_data(self, folder, net_name, lr, drop_rate):
-            file_train = open(folder+'/'+net_name+'/lr_'+str(lr)+'/data_train.dat','w')
-            file_val = open(folder+'/'+net_name+'/lr_'+str(lr)+'/data_val.dat','w')
+    def open_file_data(self, folder, net_name, lr, drop_rate, args):        
+            localtime = args.time_training
+            folder_save_results = args.save_dir+'/'+net_name+'/lr_'+str(lr)+'_'+str(args.time_training)+'/results'
+            if not os.path.exists(folder_save_results):
+                os.makedirs(folder_save_results)
+            
+            file_train = open(folder_save_results+'/data_train.dat','w')
+            file_val = open(folder_save_results+'/data_val.dat','w')
             self.results_files = {'train' : file_train, 'val' : file_val}
             
     

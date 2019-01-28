@@ -40,16 +40,13 @@ def make_dataset(dir, class_to_idx, extensions, number_by_class):
                     path = os.path.join(root, fname)
                     item = (path, class_to_idx[target])
                     images.append(item)
-                if cont_number == number_by_class:
-                    break
-                cont_number += 1
-            
-            if cont_number == number_by_class:
-                cont_number = 1
-                break
-            
+                
+                    if number_by_class > 0:
+                        if cont_number == number_by_class:
+                            cont_number = 1
+                            break
+                        cont_number += 1      
                     
-
     return images
 
 class DatasetFolderDiatoms(datasets.DatasetFolder):
@@ -57,7 +54,7 @@ class DatasetFolderDiatoms(datasets.DatasetFolder):
     def __init__(self, root, loader, extensions, transform=None, target_transform=None, number_by_class = None):
         super(DatasetFolderDiatoms, self).__init__(root, loader, extensions, transform=None, target_transform=None)
         classes, class_to_idx = find_classes(root)
-        print(number_by_class)
+        #print(number_by_class)
         samples = make_dataset(root, class_to_idx, extensions, number_by_class)
         if len(samples) == 0:
             raise(RuntimeError("Found 0 files in subfolders of: " + root + "\n"

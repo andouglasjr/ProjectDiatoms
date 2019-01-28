@@ -10,6 +10,7 @@ import matplotlib
 import random
 import torch.nn as nn
 import numpy as np
+import time
 np.set_printoptions(threshold=np.nan)
 
 def setup(args):
@@ -80,7 +81,7 @@ def get_learning_rate(args, network_name):
     if args.new_lr:
         return args.lr
     else:
-        if(network_name == "Resnet50"):
+        if(network_name == "Resnet50" or network_name == "Resnet101"):
             return 3.118464108103618e-05
         elif(network_name == "Densenet201"):
             return 8.832537199285954e-04
@@ -101,11 +102,9 @@ def train(args):
             data = DataUtils(device = device, args = args)
             data_log.log("Starting training", 'l')
             dataloaders = data.load_data()
-            dataset_size = data.get_dataset_size()
+            dataset_size = len(data.images_dataset)
 
-            train_size = dataset_size * 0.8
-            val_size = dataset_size * 0.2
-
+            train_size, val_size = dataset_size*0.8, dataset_size*0.2
             data_log.log("DataSet Size (Train: {}, Validation: {})".format(train_size, val_size), 'v')
 
             best_accuracy_old = 0
@@ -122,7 +121,7 @@ def train(args):
                 params = {
                     'lr' : lr,
                     'momentum' : args.lr_decay,
-                    'step_size' : 1,
+                    'step_size' : 5,
                     'gamma' : 0.1,
                     'set_criterion' : True,
                     'num_epochs' : args.epochs,
@@ -140,13 +139,15 @@ def train(args):
                 data_log.log("Momentum: {}".format(params['momentum']), 'e')
                 data_log.log("Gamma: {}".format(params['gamma']), 'e')
                 data_log.log("LR Center Loss: {}".format(lr_center_loss), 'e')
-
-                folder_save_results_epoch = args.save_dir+'/'+network_name+'/lr_'+str(lr)+'/epochs'
+                
+                
+                localtime = args.time_training
+                folder_save_results_epoch = args.save_dir+'/'+network_name+'/lr_'+str(lr)+'_'+str(localtime)+'/epochs'
 
                 if not os.path.exists(folder_save_results_epoch):
                     os.makedirs(folder_save_results_epoch)
 
-                folder_best_result = args.save_dir + '/'+network_name+'/lr_'+ str(lr)+'/best_result.pt'
+                folder_best_result = args.save_dir + '/'+network_name+'/lr_'+ str(lr)+'_'+str(localtime)+'/best_result.pt'
 
 
                 feature_extract=False
@@ -162,13 +163,15 @@ def train(args):
                 best_model = model_ft.train_model(model, dataloaders, params, data, args)
                 model_ft.save_model(best_model, folder_best_result)
                 
+                data_log.log("Analyzing Results to {}".format(network_name), 'l')
+                
                 data_test = DataUtils(device = device, args = args)
                 dataloaders_test = data_test.load_data(dataset_name = 'test')
-                dataset_size_test = data_test.get_dataset_size()
+                dataset_size_test = len(data_test.images_dataset)
+                data_log.log("DataSet Size (Test: {})".format(dataset_size_test), 'v')
                 
-                data_log.log("Analyzing Results to {}".format(network_name), 'l')
-                results,correct,incorrect,image_incorrect, correct_class = model_ft.test_model(best_model, dataloaders_test, list_of_name_folders[1],data, args)
-                data.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect)
+                results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(best_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
+            data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect, True)
                 
         else:  # testing
             if args.weights is None:
@@ -181,8 +184,7 @@ def train(args):
             dataset_size_test = len(data_test.images_dataset)
             data_log.log("DataSet Size (Test: {})".format(dataset_size_test), 'v')
             
-            results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(best_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
-            data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect, True)
+            
             #show_reconstruction(best_model, dataloaders[list_of_name_folders[2]], 12, args, network_name)
                 
             
@@ -228,6 +230,8 @@ if __name__ == "__main__":
     parser.add_argument('--plot', action='store_true', help="whether to plot features for every epoch")
     parser.add_argument('--images_per_class', default=21000, help="how many images will be used per class")
     parser.add_argument('--classes_training', default=50, help="how many classes there are in the training")
+    localtime = time.asctime(time.localtime(time.time()))
+    parser.add_argument('--time_training', default=localtime, help="start time training")
     
     args = parser.parse_args()
     print(args)
@@ -235,7 +239,6 @@ if __name__ == "__main__":
     #for net_name in args.network_name:
     #    if not os.path.exists(args.save_dir+'/'+net_name+'/'+/):
     #        os.makedirs(args.save_dir+'/'+net_name)
-    
     train(args)
 
 

@@ -40,9 +40,7 @@ class ModelClass():
         if (folder_names == None):
             self.folder_names = ['train','val']
         else:
-            self.folder_names = folder_names
-            
-        
+            self.folder_names = folder_names       
         
         if model_name == "Resnet18":
             print("[!] Using Resnet18 model")
@@ -63,7 +61,7 @@ class ModelClass():
             input_size = 244
                
         elif model_name == "Resnet101":
-            print("[!] Using Resnet50 model")
+            print("[!] Using Resnet101 model")
             self.model_ft = models.resnet101(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             self.num_of_features = self.model_ft.fc.in_features
@@ -266,7 +264,7 @@ class ModelClass():
         if args.plot:
             all_features, all_labels = [], []
         
-        logfile = open(args.save_dir + '/'+self.model_name+'/lr_'+str(params['lr'])+'/log.csv', 'w')
+        logfile = open(args.save_dir+'/'+str(args.network_name[0])+'/logs/log_results_'+str(args.time_training)+'.csv', 'w')
         logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
         logwriter.writeheader()
         
@@ -308,9 +306,9 @@ class ModelClass():
         #####################################
         import progressbar
         
-        data.open_file_data(args.save_dir, net_name, lr, drop_rate)
+        data.open_file_data(args.save_dir, net_name, lr, drop_rate, args)
         for epoch in range(num_epochs):
-            folder_epoch = args.save_dir + '/'+self.model_name+'/lr_'+ str(lr)+'/epochs/epoch_'+str(epoch)+'.pt'
+            folder_epoch = args.save_dir+'/'+net_name+'/lr_'+str(lr)+'_'+str(args.time_training)+'/epochs/epoch_'+str(epoch)+'.pt'
             since_epoch = time.time()
             #os.system('cls' if os.name == 'nt' else 'clear')
             c_print = ''
@@ -372,7 +370,11 @@ class ModelClass():
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
                 
-                dataset_size = len(dataloaders[phase]) * args.batch_size
+                dataset_size = len(data.images_dataset)
+                if phase=='train':
+                    dataset_size = dataset_size*0.8
+                else:
+                    dataset_size = dataset_size*0.2
                 bar.finish()
                 
                 epoch_loss = running_loss / dataset_size
