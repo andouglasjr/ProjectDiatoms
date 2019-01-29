@@ -18,13 +18,15 @@ class DataUtils():
     
     _folder_names = ['train_diatoms', 'test_diatoms_3_class']
     _folder_split = ['train', 'val']
+    _device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     _mean, _std = [0.5018, 0.5018, 0.5018],[0.0837, 0.0837, 0.0837]
     _blur = MotionBlur(p=0.2)
     _data_transforms = transforms.Compose([transforms.CenterCrop(224),
-                                           _blur(),
-                                           #transforms.Grayscale(1),
-                                          transforms.ToTensor(),
-                                          transforms.Normalize(_mean, _std)])
+                                           #_blur(),
+                                          #transforms.Grayscale(1),
+                                          #transforms.ToTensor(),
+                                          #transforms.Normalize(_mean, _std)
+                                          ])
 
     train_size, valid_size = 0, 0
     
@@ -33,7 +35,7 @@ class DataUtils():
         super(DataUtils, self).__init__()
         if args is None:
             print("Closing! Need some arguments!")
-            self.data_dir = '../data/Dataset_5/Diatom50NEW_generated'
+            self.data_dir = '../data'
             self.batch_size = 256
             self.number_by_class = 200
             #exit()
@@ -42,7 +44,8 @@ class DataUtils():
             self.batch_size = args.batch_size
             self.number_by_class = int(args.images_per_class)
         
-        self.device = device
+        self.device = self._device
+        if device is not None: self.device = device
         self.transformations = self._data_transforms
         if transformations is not None: self.transformations = transformations
         self.folder_names = self._folder_names
