@@ -81,7 +81,7 @@ def get_learning_rate(args, network_name):
     if args.new_lr:
         return args.lr
     else:
-        if(network_name == "Resnet50" or network_name == "Resnet101"):
+        if(network_name == "Resnet50" or network_name == "Resnet101" or "Resnet18"):
             return 3.118464108103618e-05
         elif(network_name == "Densenet201"):
             return 8.832537199285954e-04

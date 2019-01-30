@@ -337,8 +337,8 @@ class ModelClass():
                 # Iterate over data.
                 for i, sample in enumerate(dataloaders[phase]):
                     bar.update(i+1)
-                    
-                    (inputs, labels),(filename,_) = sample
+                    #print(sample)
+                    inputs, labels, filename = sample
                     inputs = inputs.to(self.get_device())
                     labels = labels.to(self.get_device())
                     

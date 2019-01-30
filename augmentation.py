@@ -29,16 +29,21 @@ dir_path = '../data/train_'
 ddimg = diatoms(dir_path, aug=True)
 print(ddimg.len)
 
+
 loader = D.DataLoader(ddimg, batch_size=50, shuffle=False, num_workers=0)
 
 dataiter = iter(loader)
-images = dataiter.next()
-print(images.shape)
+images, classes = dataiter.next()
+print(images, classes)
+
 
 plt.figure(figsize=(16,8))
-grid_image = torchvision.utils.make_grid(images, nrow=10)
+batch_tensor = images.unsqueeze(1)
+print(batch_tensor.shape)
+grid_image = torchvision.utils.make_grid(batch_tensor, nrow=10)
 print(grid_image.shape)
-plt.imshow(grid_image.permute(1,2,0))
+
+plt.imshow(grid_image.permute(1,2,0))  
 plt.show()
 
 

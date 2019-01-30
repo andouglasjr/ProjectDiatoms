@@ -13,6 +13,7 @@ import csv
 import math
 from torch.utils.data.sampler import SubsetRandomSampler
 from albumentations import MotionBlur
+from DiatomsDatasetAug import DiatomsDatasetAug
 
 class DataUtils():
     
@@ -50,8 +51,8 @@ class DataUtils():
         if transformations is not None: self.transformations = transformations
         self.folder_names = self._folder_names
         if folder_names is not None: self.folder_names = folder_names 
-        self.images_dataset = ImageFolderDiatoms(os.path.join(self.data_dir, self.folder_names[0]), self.transformations, number_by_class = self.number_by_class)
-        
+        #self.images_dataset = ImageFolderDiatoms(os.path.join(self.data_dir, self.folder_names[0]), self.transformations, number_by_class = self.number_by_class)
+        self.images_dataset = DiatomsDatasetAug(os.path.join(self.data_dir, self.folder_names[0]), aug=True, number_by_class = self.number_by_class)
               
     def get_image_datasets(self):
         return self.images_dataset
