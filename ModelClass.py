@@ -11,7 +11,6 @@ import copy
 import utils
 from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
-import keyboard
 import csv
 
 class ModelClass():
@@ -341,7 +340,9 @@ class ModelClass():
                     inputs, labels, filename = sample
                     inputs = inputs.to(self.get_device())
                     labels = labels.to(self.get_device())
+                    inputs = inputs.repeat(1,3,1,1)
                     
+                    #print(inputs)
                     # zero the parameter gradients
                     optimizer.zero_grad()
                     alpha = 0.5

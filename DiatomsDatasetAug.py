@@ -37,6 +37,7 @@ class DiatomsDatasetAug(data.Dataset):
                                 #RandomBrightness(),
                             ], p=1)], p=1)
             self.transform_crop = transforms.CenterCrop(224)
+            self.transform_to_tensor = transforms.ToTensor()
         else:
             self.transform = transforms.ToTensor()
         
@@ -45,7 +46,7 @@ class DiatomsDatasetAug(data.Dataset):
             filenames = glob.glob(osp.join(root+'/'+str(num_class), '*.png'))
             for fn in filenames:
                 self.filenames.append(fn)
-                self.classes.append(num_class)
+                self.classes.append(num_class-1)
                 if(cont == number_by_class):
                     cont = 1
                     break
@@ -58,6 +59,7 @@ class DiatomsDatasetAug(data.Dataset):
         classe = self.classes[index]
         if self.aug:
             image = self.transform_crop(image)
+            image = self.transform_to_tensor(image)
             data = {"image": np.array(image)}
             image = self.transform(**data)['image']
             

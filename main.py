@@ -99,7 +99,7 @@ def train(args):
             #best_model = model.load_state_dict(torch.load(args.weights))
             best_model = torch.load(args.weights)
         if not args.testing:
-            data = DataUtils(device = device, args = args)
+            data = DataUtils(folder_names = ['train_'], device = device, args = args)
             data_log.log("Starting training", 'l')
             dataloaders = data.load_data()
             dataset_size = len(data.images_dataset)
