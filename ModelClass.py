@@ -12,16 +12,16 @@ import utils
 from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
 import csv
+from matplotlib import pyplot as plt
 
 class ModelClass():
     
-    def __init__(self, model_name="", channels = 3, num_classes = 3, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None, drop_rate = 0):
+    def __init__(self, model_name="", channels = 3, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=False, folder_names = None, device = None, log = None):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
         self.use_pretrained = use_pretrained
         self.num_of_layers = num_of_layers
-        self.drop_rate = drop_rate
         self.channels = channels
         self.model_ft = None
         self.log = log
@@ -275,7 +275,6 @@ class ModelClass():
         gamma = params['gamma']
         set_criterion = params['set_criterion']
         net_name = params['net_name']
-        drop_rate = params['drop_rate']
         loss_function = params['loss_function']
         lr_center_loss = params['lr_center_loss']
         
@@ -288,7 +287,7 @@ class ModelClass():
             optimizer = self.get_optimization(model, lr, momentum)
             scheduler = self.get_scheduler(optimizer, step_size, gamma)
         elif(loss_function == 'center_loss'):
-            center_loss = CenterLoss(num_classes=3, feat_dim=3, use_gpu=True)
+            center_loss = CenterLoss(num_classes=self.num_classes, feat_dim=3, use_gpu=True)
             criterion = self.get_criterion('cross_entropy')
             params = list(model.parameters()) + list(center_loss.parameters())
             optimizer = torch.optim.SGD(params, lr=lr) # here lr is the overall learning rate
@@ -305,7 +304,7 @@ class ModelClass():
         #####################################
         import progressbar
         
-        data.open_file_data(args.save_dir, net_name, lr, drop_rate, args)
+        data.open_file_data(args.save_dir, net_name, lr, args)
         for epoch in range(num_epochs):
             folder_epoch = args.save_dir+'/'+net_name+'/lr_'+str(lr)+'_'+str(args.time_training)+'/epochs/epoch_'+str(epoch)+'.pt'
             since_epoch = time.time()
@@ -342,7 +341,6 @@ class ModelClass():
                     labels = labels.to(self.get_device())
                     inputs = inputs.repeat(1,3,1,1)
                     
-                    #print(inputs)
                     # zero the parameter gradients
                     optimizer.zero_grad()
                     alpha = 0.5
@@ -452,51 +450,66 @@ class ModelClass():
         incorrect = torch.zeros([1, 50], dtype=torch.int32, device = device)
         results = torch.zeros([50, 50], dtype=torch.int32, device = device)
         image_incorrect = [{}]
+        older_model = args.older_model
         
         cont_correct = 0
         cont_incorrect = 0
-        correct_class = 0
+        correct_class = 0.
+        
+        class_names = data.get_image_datasets().classes
+
+        vector_transform = [1 ,10,11,12,13,
+                         14,15,16,17,18,
+                         19,2 ,20,21,22,
+                         23,24,25,26,27,
+                         28,29,3 ,30,31,
+                         32,33,34,35,36,
+                         37,38,39,4 ,40,
+                         41,42,43,44,45,
+                         46,47,48,49,5 ,
+                         50, 6, 7, 8, 9]
+        
+        vector_transform_old = [27, 41, 42]
 
         with torch.no_grad():      
             for i, sample in enumerate(dataloaders['test']):
-                (inputs, labels),(filename,_) = sample
+                
+                if older_model:
+                    (inputs, labels),(filename,_) = sample
+                    labels = [int(class_names[l.item()]) for l in labels]
+                else:
+                    inputs, labels, filename = sample
+                    inputs = inputs.repeat(1,3,1,1)
+                    labels = [(l.item()+1) for l in labels]
+                
                 #print(labels,filename)
                 #inputs = inputs.to(self.device)
-                #labels = labels.to(self.device)
+                #labels = labels.to(self.device)               
                 
-                class_names = data.get_image_datasets().classes
-                print(class_names)
-                vector_transform = [1 ,10,11,12,13,
-                                 14,15,16,17,18,
-                                 19,2 ,20,21,22,
-                                 23,24,25,26,27,
-                                 28,29,3 ,30,31,
-                                 32,33,34,35,36,
-                                 37,38,39,4 ,40,
-                                 41,42,43,44,45,
-                                 46,47,48,49,5 ,
-                                 50, 6, 7, 8, 9]
-                
-                labels = [int(class_names[l.item()]) for l in labels]
-               
                 correct_class = np.array(list(set(np.array(labels))))
+                print(correct_class)
                 
                 outputs = model(inputs)
+                
                 m = nn.Softmax()
                 outputs = m(outputs)
-
+                
                 _, preds = torch.max(outputs, 1)
+                #print(preds)
                 
- 
-                
-                if(int(args.classes_training) == 3):            
-                    preds = [int(class_names[l.item()]) for l in preds]
+                if older_model:                
+                #if(int(args.classes_training) == 3):            
+                    preds = [int(vector_transform_old[l.item()]) for l in preds]
                 else:
-                    preds = [int(vector_transform[p.item()]) for p in preds]
+                    #preds = [int(vector_transform[l.item()]) for l in preds]
+                    preds = [(p.item()+1) for p in preds]
+                #preds = [int(class_names[l.item()]) + 1 for l in preds]
+                #else:
+                #preds = [(p.item()+1) for p in preds]
                 #print(preds)
                 import pandas as pd
-                df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Vector': outputs})
-                print(df)
+                df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Filename': filename})
+                #print(df)
                 writer = pd.ExcelWriter('report.xlsx')
                 df.to_excel(writer, 'Sheet1')
                 writer.save()
@@ -521,7 +534,7 @@ class ModelClass():
                                                 'correct_class': labels[k], 
                                                 'image': inputs.data[k],
                                                 'filename' : filename[k]})
-                        print(preds[k], labels[k], filename[k])
+                        #print(preds[k], labels[k], filename[k])
                         cont_incorrect += 1
                         
                 if(i>0):

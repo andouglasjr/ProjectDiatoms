@@ -73,6 +73,19 @@ def combine_images(generated_images):
             img[:, :, 0]
     return image
 
+def get_learning_rate(args, network_name):
+    if args.exponential_range is not None:
+        return 10**random.uniform(args.exponential_range[0], args.exponential_range[1])
+    if args.new_lr:
+        return args.lr
+    else:
+        if(network_name == "Resnet50" or network_name == "Resnet101" or "Resnet18"):
+            return 3.118464108103618e-05
+        elif(network_name == "Densenet201"):
+            return 8.832537199285954e-04
+        elif(network_name == "Densenet169"):
+            return 2.6909353460670058e-05
+
 
 if __name__=="__main__":
     plot_log('log_resnet_101_50_classes.csv')

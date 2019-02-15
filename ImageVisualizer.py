@@ -153,5 +153,31 @@ class ImageVisualizer:
             ax.set_title('Predict: {}'.format(predicts_wrong[j]['class']))
             self.imshow(predicts_wrong[j]['image'], folder_name = 'train_')
 
+        plt.imshow(grid_image.permute(1,2,0))  
+        plt.show() 
+    #def grid(image):
+        #loader = D.DataLoader(image, batch_size=120, shuffle=False, num_workers=0)
+        #dataiter = iter(loader)
+        #images, classes,filename = dataiter.next()
+        #images = images.repeat(1,3,1,1)
+        #print(images, classes)
+     #   images=image
+      #  plt.figure(figsize=(16,8))
+        #batch_tensor = images.unsqueeze(1)
+        #print(images.shape)
+        #grid_image = torchvision.utils.make_grid(images, nrow=10)
+       # print(grid_image.shape)
         
-        
+        #images_inc = []
+        #for img_inc_name in image_incorrect[1:]:
+        #    if(img_inc_name is not '{}'):
+        #        images_inc.append(img_inc_name['image'])
+
+        #print(images_inc)
+        #grid(images_inc)
+
+    
+
+            #Visualizing Results
+            #visual = ImageVisualizer(list_of_name_folders, mean, std)
+            #visual.call_visualize_misclassifications(correct_class, visual, image_incorrect)

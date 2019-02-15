@@ -25,8 +25,8 @@ class DataUtils():
     _data_transforms = transforms.Compose([transforms.CenterCrop(224),
                                            #_blur(),
                                           #transforms.Grayscale(1),
-                                          #transforms.ToTensor(),
-                                          #transforms.Normalize(_mean, _std)
+                                          transforms.ToTensor(),
+                                          transforms.Normalize(_mean, _std)
                                           ])
 
     train_size, valid_size = 0, 0
@@ -36,14 +36,16 @@ class DataUtils():
         super(DataUtils, self).__init__()
         if args is None:
             print("Closing! Need some arguments!")
-            self.data_dir = '../data'
+            self.data_dir = '../data/Dataset_5/Diatom50NEW_generated'
             self.batch_size = 256
-            self.number_by_class = 200
+            self.number_by_class = 21000
+            self.older_model = False
             #exit()
         else:
             self.data_dir = args.data_dir
             self.batch_size = args.batch_size
             self.number_by_class = int(args.images_per_class)
+            self.older_model = args.older_model
         
         self.device = self._device
         if device is not None: self.device = device
@@ -51,14 +53,18 @@ class DataUtils():
         if transformations is not None: self.transformations = transformations
         self.folder_names = self._folder_names
         if folder_names is not None: self.folder_names = folder_names 
-        #self.images_dataset = ImageFolderDiatoms(os.path.join(self.data_dir, self.folder_names[0]), self.transformations, number_by_class = self.number_by_class)
-        self.images_dataset = DiatomsDatasetAug(os.path.join(self.data_dir, self.folder_names[0]), aug=True, number_by_class = self.number_by_class)
+        self.aug = args.new_aug
+        if self.older_model:
+            print("Older model activated!")
+            self.images_dataset = ImageFolderDiatoms(os.path.join(self.data_dir, self.folder_names[0]), self.transformations, number_by_class = self.number_by_class)
+        else:
+            self.images_dataset = DiatomsDatasetAug(os.path.join(self.data_dir, self.folder_names[0]), aug=self.aug, args = args)
               
     def get_image_datasets(self):
         return self.images_dataset
     
-    def get_dataset_sizes(self, dataloaders):
-        return len(dataloaders['train']), len(dataloaders['val']) 
+    def get_dataset_sizes(self):
+        return self.train_size, self.valid_size
     
     def load_data(self, validation_split = .2, dataset_name = 'train'):
         if(dataset_name == 'train'):
@@ -99,7 +105,7 @@ class DataUtils():
             
         return dataloaders
     
-    def open_file_data(self, folder, net_name, lr, drop_rate, args):        
+    def open_file_data(self, folder, net_name, lr, args):        
             localtime = args.time_training
             folder_save_results = args.save_dir+'/'+net_name+'/lr_'+str(lr)+'_'+str(args.time_training)+'/results'
             if not os.path.exists(folder_save_results):
@@ -167,7 +173,7 @@ class DataUtils():
                 if(results[i,j] >= 1 and i != j):
                     log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i, j, results[i,j].tolist()), 'e')      
                     
-    def compute_mean(self, image_datasets, name_dir):
+    def compute_mean(self, dataloaders, name_dir):
         pop_mean = []
         pop_std0 = []
         pop_std1 = []
@@ -175,12 +181,13 @@ class DataUtils():
         toTensor = transforms.ToTensor()
         #image_datasets = datasets.ImageFolder(os.path.join(data_dir, name_dir))
 
-        dataloaders =  {name_dir: torch.utils.data.DataLoader(image_datasets[name_dir], 
-                                                   batch_size = self.batch_size, 
-                                                   shuffle = self.shuffle, 
-                                                   num_workers = self.num_workers)}
-                       
-        for i, (inputs, labels) in enumerate(dataloaders[name_dir]):
+        #dataloaders =  {name_dir: torch.utils.data.DataLoader(image_datasets[name_dir], 
+        #                                           batch_size = self.batch_size, 
+        #                                           shuffle = self.shuffle, 
+        #                                           num_workers = self.num_workers)}
+                    
+        for i, sample in enumerate(dataloaders['train']):
+            inputs, labels, filename = sample
             # shape (batch_size, 3, height, width)
             inputs = inputs.to(device)
             numpy_image = inputs.cpu().numpy()
@@ -205,44 +212,9 @@ class DataUtils():
 
 if __name__ == "__main__":
     
-    
-    list_of_name_folders = ['train_diatoms_3_class_simulate_all','val_diatoms_3_class_simulate_all', 'test_diatoms_3_class']
-    mean, std = [0.5018, 0.5018, 0.5018],[0.0837, 0.0837, 0.0837]
-    
-    data_transforms = {
-        list_of_name_folders[0]: transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            transforms.RandomHorizontalFlip(),
-            transforms.RandomRotation(180),
-            #transforms.Grayscale(1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-            #transforms.Normalize([0.493], [0.085])
-        ]),
-        list_of_name_folders[1]: transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            #transforms.Grayscale(1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-            #transforms.Normalize([0.496], [0.07])
-        ]),
-         list_of_name_folders[2]: transforms.Compose([
-            transforms.Resize(256),
-            transforms.CenterCrop(224),
-            #transforms.Grayscale(1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std)
-            #transforms.Normalize([0.496], [0.07])
-        ])
-    }
-    
-    data_dir = '../data/Dataset_4'
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    
-    data = DataUtils(list_of_name_folders, data_dir, data_transforms, net_name = 'Resnet50', device = device)
-    dataloaders = data.load_data(data.images_dataset)
-    print(len(dataloaders['train']))
-    
-    
+    folder_name = ['train_diatoms']
+    data_test = DataUtils(folder_names = folder_name)
+    dataloaders_test = data_test.load_data()
+    dataset_size_test = len(data_test.images_dataset)
+    print(dataset_size_test)
+    print(data_test.compute_mean(dataloaders_test, folder_name[0]))
