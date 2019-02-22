@@ -13,10 +13,13 @@ from sklearn.metrics import f1_score
 from CenterLoss import CenterLoss
 import csv
 from matplotlib import pyplot as plt
+from DiatomsNetwork import DiatomsNetwork
+import torchvision
+from FullyConnectedCapsuled import FullyConnectedCapsuled
 
 class ModelClass():
     
-    def __init__(self, model_name="", channels = 3, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=False, folder_names = None, device = None, log = None):
+    def __init__(self, model_name="", channels = 3, num_classes = 50, feature_extract=False, num_of_layers=0, use_pretrained=True, folder_names = None, device = None, log = None):
         self.model_name = model_name
         self.num_classes = num_classes
         self.feature_extract = feature_extract
@@ -64,6 +67,7 @@ class ModelClass():
             self.model_ft = models.resnet101(pretrained=use_pretrained)
             self.set_parameter_requires_grad(self.model_ft, self.feature_extract)
             self.num_of_features = self.model_ft.fc.in_features
+            #self.model_ft.fc = FullyConnectedCapsuled(self.num_of_features, num_classes)
             self.model_ft.fc = nn.Linear(self.num_of_features, num_classes)
             if (self.channels == 1):
                 new_features = self.model_ft.features[0]
@@ -159,6 +163,12 @@ class ModelClass():
                 # For RGB it should be copied from pretrained weights
                 #new_features[0].weight.data[:, :3, :, :] = pretrained_weights
                 self.model_ft.features = new_features
+            
+            input_size = 244
+        
+        elif model_name == "DiatomsNetwork":
+            print("[!] DiatomsNetwork model")
+            self.model_ft = DiatomsNetwork(num_classes)
             
             input_size = 244
             
@@ -260,6 +270,7 @@ class ModelClass():
         isKfoldMethod = False
         best_model_wts = copy.deepcopy(model.state_dict())
         best_acc = 0.0
+        best_epoch_pos = 0
         if args.plot:
             all_features, all_labels = [], []
         
@@ -315,6 +326,7 @@ class ModelClass():
             last_phase = ''
             train_loss = 0
             # Each epoch has a training and validation phase
+            
 
             for phase in ['train', 'val']  :
                 if phase ==  self.folder_names[0]:
@@ -336,7 +348,7 @@ class ModelClass():
                 for i, sample in enumerate(dataloaders[phase]):
                     bar.update(i+1)
                     #print(sample)
-                    inputs, labels, filename = sample
+                    inputs, labels, filename, shape = sample
                     inputs = inputs.to(self.get_device())
                     labels = labels.to(self.get_device())
                     inputs = inputs.repeat(1,3,1,1)
@@ -349,7 +361,8 @@ class ModelClass():
                     # forward
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
-                        outputs = model(inputs)
+                        outputs= model(inputs)
+                        
                         _, preds = torch.max(outputs, 1)
                         if(loss_function == 'cross_entropy' or loss_function=='softmax'):
                             loss = criterion(outputs, labels) 
@@ -398,6 +411,7 @@ class ModelClass():
                 # deep copy the model
                 if phase ==  'val' and epoch_acc > best_acc:
                     best_acc = epoch_acc
+                    best_epoch_pos = epoch
                     best_model_wts = copy.deepcopy(model.state_dict())
                 
                 last_phase = phase
@@ -414,7 +428,7 @@ class ModelClass():
         time_elapsed = time.time() - since
         self.log.log('Training complete in {:.0f}m {:.0f}s'.format(
             time_elapsed // 60, time_elapsed % 60), 'v')
-        self.log.log('Best val Acc: {:4f}'.format(best_acc), 'v')
+        self.log.log('Best val Acc: {:4f} in Epoch: {}'.format(best_acc, best_epoch_pos), 'v')
 
         # load best model weights
         model.load_state_dict(best_model_wts)
@@ -470,6 +484,8 @@ class ModelClass():
                          50, 6, 7, 8, 9]
         
         vector_transform_old = [27, 41, 42]
+        
+        
 
         with torch.no_grad():      
             for i, sample in enumerate(dataloaders['test']):
@@ -478,31 +494,54 @@ class ModelClass():
                     (inputs, labels),(filename,_) = sample
                     labels = [int(class_names[l.item()]) for l in labels]
                 else:
-                    inputs, labels, filename = sample
+                    inputs, labels, filename, shape = sample
                     inputs = inputs.repeat(1,3,1,1)
-                    labels = [(l.item()+1) for l in labels]
+                    #labels = [(l.item()+1) for l in labels]
                 
-                #print(labels,filename)
+                print(labels)
                 #inputs = inputs.to(self.device)
                 #labels = labels.to(self.device)               
                 
                 correct_class = np.array(list(set(np.array(labels))))
                 print(correct_class)
+
+
+                #outputs = model(inputs)
                 
                 outputs = model(inputs)
+                #print(p1.shape)
+                #plt.figure(figsize=(16,8))
+                #p1 = torch.unsqueeze(p1, 2)
+                #print(p1.shape)
+                #grid_image = torchvision.utils.make_grid(p1[100], nrow=9)
+                #print(grid_image.shape)
+                #grid_image = grid_image.permute(1,2,0)
+                #plt.imshow(grid_image)  
+                #plt.show()
                 
-                m = nn.Softmax()
-                outputs = m(outputs)
+                #print(p2.shape)
+                #plt.figure(figsize=(16,8))
+                #p2 = torch.unsqueeze(p2, 2)
+                #print(p2.shape)
+                #grid_image = torchvision.utils.make_grid(p2[100], nrow=9)
+                #print(grid_image.shape)
+                #grid_image = grid_image.permute(1,2,0)
+                #plt.imshow(grid_image)  
+                #plt.show()
+                
+                #m = nn.Softmax()
+                #outputs = m(outputs)
                 
                 _, preds = torch.max(outputs, 1)
-                #print(preds)
+                print(preds)
                 
                 if older_model:                
                 #if(int(args.classes_training) == 3):            
                     preds = [int(vector_transform_old[l.item()]) for l in preds]
                 else:
-                    #preds = [int(vector_transform[l.item()]) for l in preds]
-                    preds = [(p.item()+1) for p in preds]
+                    #preds = [int(vector_transform_old[l.item()]) for l in preds]
+                    #preds = [(p.item()+1) for p in preds]
+                    preds = [(p.item()) for p in preds]
                 #preds = [int(class_names[l.item()]) + 1 for l in preds]
                 #else:
                 #preds = [(p.item()+1) for p in preds]

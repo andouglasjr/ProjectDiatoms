@@ -102,20 +102,20 @@ class ArgumentsParser():
         print("     {0:<10}".format("Batch Size:...................." + str(self.args.batch_size)))
         print("     {0:<10}".format("Loss Function:................." + self.args.loss_function))
         print("     {0:<10}".format("Data Directory:................" + self.args.data_dir))
-        print("     {0:<10}".format("Images per Class:.............." + self.args.images_per_class))
-        print("     {0:<10}".format("Number of Classes:............." + self.args.classes_training))
+        print("     {0:<10}".format("Images per Class:.............." + str(self.args.images_per_class)))
+        print("     {0:<10}".format("Number of Classes:............." + str(self.args.classes_training)))
         print(''.center(ts.columns, '-'))
         print("Activated Flags".format(self.localtime).center(ts.columns, ' '))
         print(''.center(ts.columns, '-').center(ts.columns, ' '))
         content = ""
         if(self.args.new_lr):
-            content.append("new_lr - ")
+            content+="new_lr - "
         if(self.args.older_model):
-            content.append("older_model - ")
+            content+="older_model - "
         if(self.args.new_aug):
-            content.append("new_aug - ")
+            content+="new_aug - "
         if(self.args.testing):
-            content.append("testing")
+            content+="testing"
         if content is "":
             print("Nothing".center(ts.columns, ' '))
         else:

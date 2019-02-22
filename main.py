@@ -85,6 +85,8 @@ def train(args, device):
         model = model_ft.get_model()
         best_model = model_ft.train_model(model, dataloaders, params, dataset, args)
         model_ft.save_model(best_model, folder_best_result)
+        
+        
         ################################################################################################################
 
 

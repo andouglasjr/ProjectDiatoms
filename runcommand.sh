@@ -6,6 +6,9 @@
 
 . train_parameters.config
 
-echo "CUDA_VISIBLE_DEVICES=$CudaDevices python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir"
+export CUDA_VISIBLE_DEVICES=$CudaDevices
 
-CUDA_VISIBLE_DEVICES=$CudaDevices python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir
+python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir --new_lr --lr $LearningRate
+
+
+

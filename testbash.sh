@@ -7,5 +7,7 @@
 . train_parameters.config
 
 command="CUDA_VISIBLE_DEVICES=$CudaDevices python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir"
-echo command
+echo "$command"
 command
+
+
