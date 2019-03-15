@@ -40,3 +40,24 @@ class FullyConnectedCapsuled(torch.nn.Module):
         x_out = torch.cat((x_out, self.fc_nl_5(x)),1)
         x_out = torch.cat((x_out, self.fc_nl_6(x)),1)
         return x_out
+
+    
+                #print(p1.shape)
+                #plt.figure(figsize=(16,8))
+                #p1 = torch.unsqueeze(p1, 2)
+                #print(p1.shape)
+                #grid_image = torchvision.utils.make_grid(p1[100], nrow=9)
+                #print(grid_image.shape)
+                #grid_image = grid_image.permute(1,2,0)
+                #plt.imshow(grid_image)  
+                #plt.show()
+                
+                #print(p2.shape)
+                #plt.figure(figsize=(16,8))
+                #p2 = torch.unsqueeze(p2, 2)
+                #print(p2.shape)
+                #grid_image = torchvision.utils.make_grid(p2[100], nrow=9)
+                #print(grid_image.shape)
+                #grid_image = grid_image.permute(1,2,0)
+                #plt.imshow(grid_image)  
+                #plt.show()

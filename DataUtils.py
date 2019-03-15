@@ -15,6 +15,11 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from albumentations import MotionBlur
 from DiatomsDatasetAug import DiatomsDatasetAug
 
+from sklearn import svm, datasets
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import confusion_matrix
+import itertools
+
 class DataUtils():
     
     _folder_names = ['train_diatoms', 'test_diatoms_3_class']
@@ -35,17 +40,19 @@ class DataUtils():
     def __init__(self, folder_names = None, transformations=None, device=None, args = None):
         super(DataUtils, self).__init__()
         if args is None:
-            print("Closing! Need some arguments!")
+            print("No arguments!")
             self.data_dir = '../data/Dataset_5/Diatom50NEW_generated'
-            self.batch_size = 256
-            self.number_by_class = 21000
+            self.batch_size = 128
+            self.number_by_class = 1000
             self.older_model = False
+            self.aug  = False
             #exit()
         else:
             self.data_dir = args.data_dir
             self.batch_size = args.batch_size
             self.number_by_class = int(args.images_per_class)
             self.older_model = args.older_model
+            self.aug = args.new_aug
         
         self.device = self._device
         if device is not None: self.device = device
@@ -53,7 +60,7 @@ class DataUtils():
         if transformations is not None: self.transformations = transformations
         self.folder_names = self._folder_names
         if folder_names is not None: self.folder_names = folder_names 
-        self.aug = args.new_aug
+        
         if self.older_model:
             print("Older model activated!")
             self.images_dataset = ImageFolderDiatoms(os.path.join(self.data_dir, self.folder_names[0]), self.transformations, number_by_class = self.number_by_class)
@@ -76,7 +83,6 @@ class DataUtils():
             
             # Creating data indices for training and validation splits:
             dataset_size = len(dataset)
-            print(dataset_size)
             indices = list(range(dataset_size))
             
             np.random.seed(random_seed)
@@ -171,8 +177,72 @@ class DataUtils():
         for i in range(50):
             for j in range(50):
                 if(results[i,j] >= 1 and i != j):
-                    log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i, j, results[i,j].tolist()), 'e')      
+                    log.log("Predict Class: {} -> Label Class: {} - Quantity {}".format(i, j, results[i,j].tolist()), 'e')
                     
+    def plot_confusion_matrix(self, cm, classes,
+                              normalize=False,
+                              title='Confusion matrix',
+                              cmap=plt.cm.Blues):
+        """
+        This function prints and plots the confusion matrix.
+        Normalization can be applied by setting `normalize=True`.
+        """
+        if normalize:
+            cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+            print("Normalized confusion matrix")
+        else:
+            print('Confusion matrix, without normalization')
+
+        #print(cm)
+
+        plt.imshow(cm, interpolation='nearest', cmap=cmap)
+        plt.title(title)
+        plt.colorbar()
+        tick_marks = np.arange(len(classes))
+        plt.xticks(tick_marks, classes, rotation=45)
+        plt.yticks(tick_marks, classes)
+
+        fmt = '.2f' if normalize else 'd'
+        thresh = cm.max() / 2.
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            plt.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+
+        plt.ylabel('True label')
+        plt.xlabel('Predicted label')
+        plt.tight_layout()
+        
+    def confusion_matrix_skt(self, y_test, y_pred, class_names):
+        # Compute confusion matrix
+        cnf_matrix = confusion_matrix(y_test, y_pred)
+        
+        np.set_printoptions(precision=2)
+
+        # Plot non-normalized confusion matrix
+        plt.figure()
+        self.plot_confusion_matrix(cnf_matrix, classes=class_names,
+                              title='Confusion matrix')
+
+        # Plot normalized confusion matrix
+        #plt.figure()
+        #self.plot_confusion_matrix(cnf_matrix, classes=class_names, normalize=True,
+        #                      title='Normalized confusion matrix')
+
+        plt.show()
+    
+    def plot_bar_chart(model, inputs):
+        classes = [x for x in range(1,51)]
+        outputs = model(inputs)
+        m = nn.Softmax()
+        o = m(outputs)
+        y_pos = np.arange(len(classes))
+        plt.bar(y_pos, output, align='center', alpha=0.5)
+        plt.xticks(y_pos, classes)
+        plt.ylabel('%')
+        plt.title('Output Softmax')
+        plt.show()
+
     def compute_mean(self, dataloaders, name_dir):
         pop_mean = []
         pop_std0 = []

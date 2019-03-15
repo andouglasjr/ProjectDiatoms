@@ -19,6 +19,10 @@ import os.path as osp
 from PIL import Image
 import argparse
 from ArgumentsParser import ArgumentsParser
+from sklearn.externals import joblib
+from sklearn import model_selection
+import xgboost
+
 np.set_printoptions(threshold=np.nan)
     
 def create_folders_to_results(args, params):
@@ -101,6 +105,7 @@ def test(args, device, model):
     data_log.log("Analyzing Results to {}".format(args.network_name), 'l')
 
     folder_name = ['test_diatoms_3_class']
+    #folder_name = ['Diatom50NEW_focus']
     data_test = DataUtils(folder_names = folder_name, device = device, args = args)
 
     dataloaders_test = data_test.load_data(dataset_name = 'test')
@@ -108,11 +113,16 @@ def test(args, device, model):
 
     dataset_size_test = len(data_test.images_dataset)
     data_log.log("DataSet Size (Test: {})".format(dataset_size_test), 'v')
-    results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
+    #results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_models(model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
+    
+    #results,correct,incorrect,image_incorrect, correct_class = ModelClass.test_model(model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
+    
+    xgb_model = joblib.load("pima.pickle.dat")
+    ModelClass.test_xgboost_model(model, xgb_model, dataloaders_test, list_of_name_folders[1], data_test, device, data_log, args)
 
 
 
-    data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect, True)      
+    #data_test.save_results(results,correct,incorrect, correct_class, data_log, image_incorrect, True)      
 
     
 if __name__ == "__main__":
@@ -133,7 +143,16 @@ if __name__ == "__main__":
     ################################################################################################################
     
     if args.weights is not None:  # init the model weights with provided one
-        best_model = torch.load(args.weights)
+        #best_model = torch.load(args.weights)
+        model_names = ["results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt", 
+                      "results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt",
+                      "results/Resnet101/lr_0.0003118464108103618_Thu Feb 21 11:01:00 2019/epochs/epoch_3.pt"]
+        best_model = []
+        best_model.append(torch.load(model_names[0]))
+        best_model.append(torch.load(model_names[1]))
+                       
+        
+        #best_model.append(torch.load(model_names[2]))
     if not args.testing:
         train(args, device)
     else:

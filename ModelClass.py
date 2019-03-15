@@ -16,6 +16,9 @@ from matplotlib import pyplot as plt
 from DiatomsNetwork import DiatomsNetwork
 import torchvision
 from FullyConnectedCapsuled import FullyConnectedCapsuled
+import pandas as pd
+from DataUtils import DataUtils
+from sklearn.metrics import accuracy_score
 
 class ModelClass():
     
@@ -460,6 +463,129 @@ class ModelClass():
         import csv        
         was_training = model.training
         model.eval()
+        correct = torch.zeros([1, 51], dtype=torch.int32, device = device)
+        incorrect = torch.zeros([1, 51], dtype=torch.int32, device = device)
+        results = torch.zeros([51, 51], dtype=torch.int32, device = device)
+        image_incorrect = [{}]
+        older_model = args.older_model
+        
+        cont_correct = 0
+        cont_incorrect = 0
+        correct_class = 0.
+        
+        class_names = data.get_image_datasets().classes
+
+        vector_transform = [1 ,10,11,12,13,
+                         14,15,16,17,18,
+                         19,2 ,20,21,22,
+                         23,24,25,26,27,
+                         28,29,3 ,30,31,
+                         32,33,34,35,36,
+                         37,38,39,4 ,40,
+                         41,42,43,44,45,
+                         46,47,48,49,5 ,
+                         50, 6, 7, 8, 9]
+        
+        vector_transform_old = [27, 41, 42]
+        
+        
+        y_pred = []
+        y_test = []
+        correct_class = []
+        with torch.no_grad():      
+            
+            for i, sample in enumerate(dataloaders['test']):
+                
+                if older_model:
+                    (inputs, labels),(filename,_) = sample
+                    labels = [int(class_names[l.item()]) for l in labels]
+                else:
+                    inputs, labels, filename, shape = sample
+                    inputs = inputs.repeat(1,3,1,1)
+                    #labels = [(l.item()+1) for l in labels]
+                
+                #print(labels)
+                #inputs = inputs.to(self.device)
+                #labels = labels.to(self.device)               
+                correct_class = np.concatenate((correct_class, labels),0)
+                correct_class = sorted(np.array(list(set(np.array(correct_class,dtype=np.int16))),dtype=np.int16))
+                print(correct_class)
+                
+                
+                outputs = model(inputs)
+                
+                _, preds = torch.max(outputs, 1)
+                print(preds)
+                
+                if older_model:                
+                #if(int(args.classes_training) == 3):            
+                    preds = [int(vector_transform_old[l.item()]) for l in preds]
+                else:
+                    preds = [int(vector_transform_old[l.item()]) for l in preds]
+                    #preds = [(p.item()+1) for p in preds]
+                    #preds = [int(p.item()) for p in preds]
+                    
+                #preds = [int(class_names[l.item()]) + 1 for l in preds]
+                #else:
+                #preds = [(p.item()+1) for p in preds]
+                #print(preds)
+                
+                #df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Filename': filename})
+                #print(df)
+                #writer = pd.ExcelWriter('report.xlsx')
+                #df.to_excel(writer, 'Sheet1')
+                #writer.save()
+                    
+                #log.log("F1 SOCRE:", 'l')
+                #log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
+                #log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
+                #log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
+                #log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
+                
+                y_pred = np.concatenate((y_pred,preds),0)
+                print(y_pred)
+                y_test = np.concatenate((y_test,labels),0)
+                print(y_test)
+                                               
+                #if(i>0):
+                #    correct_class = self.update_correct_class(correct_class_old, correct_class)
+                #correct_class_old = correct_class
+                
+                
+            if not older_model:
+                y_test = [l + 1 for l in y_test]
+                #y_pred = [p + 1 for p in y_pred]
+                
+            class_names = sorted(np.array(list(set(np.array(y_pred)))))
+            data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
+            labels = np.array(y_test, dtype=int)
+            preds = np.array(y_pred, dtype = int)
+            
+            for k in range(len(labels)-1):
+
+                if(preds[k] == labels[k]):
+                    results[preds[k],preds[k]] +=1
+                    correct[0,preds[k]] += 1
+                    cont_correct += 1
+                else:
+                    results[preds[k],labels[k]] +=1
+                    incorrect[0,preds[k]] += 1
+                    #image_incorrect.append({'class' : preds[k],
+                    #                        'correct_class': labels[k], 
+                    #                        'image': inputs.data[k],
+                    #                        'filename' : filename[k]})
+                    #print(preds[k], labels[k], filename[k])
+                    cont_incorrect += 1
+
+            
+            
+
+        return results, cont_correct, cont_incorrect, image_incorrect, correct_class
+    
+    def test_models(model, dataloaders, folder_name, data, device, log, args):
+        import csv        
+        was_training = model[0].training
+        model[0].eval()
         correct = torch.zeros([1, 50], dtype=torch.int32, device = device)
         incorrect = torch.zeros([1, 50], dtype=torch.int32, device = device)
         results = torch.zeros([50, 50], dtype=torch.int32, device = device)
@@ -505,35 +631,19 @@ class ModelClass():
                 correct_class = np.array(list(set(np.array(labels))))
                 print(correct_class)
 
-
-                #outputs = model(inputs)
+                m = nn.Softmax()
+                outputs = model[0](inputs)
+                out = m(outputs)
                 
-                outputs = model(inputs)
-                #print(p1.shape)
-                #plt.figure(figsize=(16,8))
-                #p1 = torch.unsqueeze(p1, 2)
-                #print(p1.shape)
-                #grid_image = torchvision.utils.make_grid(p1[100], nrow=9)
-                #print(grid_image.shape)
-                #grid_image = grid_image.permute(1,2,0)
-                #plt.imshow(grid_image)  
-                #plt.show()
+                outputs = model[1](inputs)
+                out = torch.add(out, m(outputs))
                 
-                #print(p2.shape)
-                #plt.figure(figsize=(16,8))
-                #p2 = torch.unsqueeze(p2, 2)
-                #print(p2.shape)
-                #grid_image = torchvision.utils.make_grid(p2[100], nrow=9)
-                #print(grid_image.shape)
-                #grid_image = grid_image.permute(1,2,0)
-                #plt.imshow(grid_image)  
-                #plt.show()
+                #outputs = model[2](inputs)
+                #out = torch.add(out, m(outputs))
                 
-                #m = nn.Softmax()
-                #outputs = m(outputs)
+                _, preds = torch.max(out, 1)
                 
-                _, preds = torch.max(outputs, 1)
-                print(preds)
+                
                 
                 if older_model:                
                 #if(int(args.classes_training) == 3):            
@@ -546,7 +656,7 @@ class ModelClass():
                 #else:
                 #preds = [(p.item()+1) for p in preds]
                 #print(preds)
-                import pandas as pd
+                
                 df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Filename': filename})
                 #print(df)
                 writer = pd.ExcelWriter('report.xlsx')
@@ -581,3 +691,90 @@ class ModelClass():
                 correct_class_old = correct_class
 
         return results, cont_correct, cont_incorrect, image_incorrect, correct_class
+
+    
+    def get_features_layer(model, data, device):
+        if model == None:
+            model = torch.load(model_names[0])
+
+        model = model.module
+        feature_layer_model = nn.Sequential(*list(model.children())[:-1])
+        #Using more than one GPU
+        ######################################
+        if torch.cuda.device_count() > 1:
+            #print("Let's use", torch.cuda.device_count(), "GPUs!")
+            #dim = 0 [30, xxx] -> [10, ...], [10, ...], [10, ...] on 3 GPUs
+            feature_layer_model = nn.DataParallel(feature_layer_model)
+
+        feature_layer_model = feature_layer_model.to(device)
+        #####################################
+        #data = torch.from_numpy(data)
+        feature_layer_output = feature_layer_model(data)
+        feature_layer_output = torch.squeeze(feature_layer_output)
+        return feature_layer_output
+    
+    def test_xgboost_model(model, xgb_model, dataloaders, folder_name, data, device, log, args):
+        import csv        
+        was_training = model[0].training
+        model[0].eval()
+        correct = torch.zeros([1, 50], dtype=torch.int32, device = device)
+        incorrect = torch.zeros([1, 50], dtype=torch.int32, device = device)
+        results = torch.zeros([50, 50], dtype=torch.int32, device = device)
+        image_incorrect = [{}]
+        older_model = args.older_model
+        
+        cont_correct = 0
+        cont_incorrect = 0
+        correct_class = 0.
+        
+        class_names = data.get_image_datasets().classes
+
+        vector_transform = [1 ,10,11,12,13,
+                         14,15,16,17,18,
+                         19,2 ,20,21,22,
+                         23,24,25,26,27,
+                         28,29,3 ,30,31,
+                         32,33,34,35,36,
+                         37,38,39,4 ,40,
+                         41,42,43,44,45,
+                         46,47,48,49,5 ,
+                         50, 6, 7, 8, 9]
+        
+        vector_transform_old = [27, 41, 42]
+        
+        
+        model_1 = model[0]
+        model_1 = model_1.to(device)
+        model_2 = model[1]
+        model_2 = model_2.to(device)
+        
+        with torch.no_grad():      
+            for i, sample in enumerate(dataloaders['test']):
+                
+                if older_model:
+                    (inputs, labels),(filename,_) = sample
+                    labels = [int(class_names[l.item()]) for l in labels]
+                else:
+                    inputs, labels, filename, shape = sample
+                    inputs = inputs.repeat(1,3,1,1)
+                    #labels = [(l.item()+1) for l in labels]
+                
+                print(labels)
+                #inputs = inputs.to(self.device)
+                #labels = labels.to(self.device)               
+                
+                correct_class = np.array(list(set(np.array(labels))))
+                print(correct_class)
+                
+                feat_out_1 = ModelClass.get_features_layer(model_1, inputs, device)
+                feat_out_2 = ModelClass.get_features_layer(model_2, inputs, device)
+                feat_out = torch.cat((feat_out_1, feat_out_2), 1)
+
+                y_pred = xgb_model.predict(feat_out)
+                predictions = [round(value) for value in y_pred]
+                print(predictions)
+                # evaluate predictions
+                accuracy = accuracy_score(labels, predictions)
+                print("Accuracy: %.2f%%" % (accuracy * 100.0))
+                
+            

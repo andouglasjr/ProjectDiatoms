@@ -23,8 +23,12 @@ class DiatomsDatasetAug(data.Dataset):
         self.shape_classes = []
         self.root = root
         self.aug = aug
-        self.number_by_class = int(args.images_per_class)
-        self.number_classes = int(args.classes_training)        
+        self.number_by_class = 2000
+        self.number_classes = 50
+        
+        if args is not None:
+            self.number_by_class = int(args.images_per_class)
+            self.number_classes = int(args.classes_training)
         #shape vector
         self.shape = [0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,1,3,1,0,1,1,1,2,2,4,5,1,1,1,1,1,1,1,1,1,2,0,2,2,5,5,1,1,1,2,5,1]
         
@@ -56,7 +60,7 @@ class DiatomsDatasetAug(data.Dataset):
                     self.classes.append(classes.index(num_class)) 
                 else:
                     self.classes.append(num_class-1) 
-                    self.shape_classes.append(self.shape[num_class-1]) 
+                self.shape_classes.append(self.shape[num_class-1]) 
                 if(cont == self.number_by_class):
                     cont = 1
                     break

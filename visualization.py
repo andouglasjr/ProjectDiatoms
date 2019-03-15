@@ -24,8 +24,8 @@ loss_function = args.loss_function
 dataset = DataUtils(device = device,   args = args, folder_names = list_of_name_folders)
 dataloaders = dataset.load_data(validation_split = 0)
 
-model_ft = ModelClass(model_name=network_name, num_classes = int(args.classes_training), log = data_log)
-model = model_ft.get_model()
+#model_ft = ModelClass(model_name=network_name, num_classes = int(args.classes_training), log = data_log)
+#model = model_ft.get_model()
 
 #new_features = torch.nn.Sequential(*list(model.children()))
 #for param in new_features[0]:
@@ -42,20 +42,21 @@ model = model_ft.get_model()
 #grid_image = grid_image.permute(1,2,0).detach().numpy()
 #plt.imshow(grid_image)  
 
-best_model = torch.load("/home/andouglas/Desktop/Results/all_lr_0.0001_drop_0.pt", map_location='cpu')
-p =[]
+best_model = torch.load(args.weights, map_location='cpu')
+# = best_model.get_output_first_layer()
 cont = 0
+p = []
 for name, param in best_model.named_parameters():
     p.append(param)
-    print(param.shape, name, cont)
+    print(param.shape, name, cont, param)
     cont=cont+1
-print(p[153].shape)
-plt.figure(figsize=(16,8))
-grid_image = torchvision.utils.make_grid(p[0], nrow=8)
-print(grid_image.shape)
-grid_image = grid_image.permute(1,2,0).detach().numpy()
-plt.imshow(grid_image)  
-plt.show() 
+#print(p[0].shape)
+#lt.figure(figsize=(16,8))
+#rid_image = torchvision.utils.make_grid(p, nrow=8)
+#rint(grid_image.shape)
+#rid_image = grid_image.permute(1,2,0).detach().numpy()
+#lt.imshow(grid_image)  
+#lt.show() 
 
 
 
