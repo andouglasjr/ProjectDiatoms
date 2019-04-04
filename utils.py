@@ -60,6 +60,95 @@ def plot_log(filename, show=True):
     if show:
         plt.show()
 
+def plot_log_two_models(filename, show=True):
+    # load data
+    keys = []
+    values = []
+    with open(filename, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if keys == []:
+                for key, value in row.items():
+                    keys.append(key)
+                    values.append(float(value))
+                continue
+
+            for _, value in row.items():
+                values.append(float(value))
+
+        values = np.reshape(values, newshape=(-1, len(keys)))
+
+    fig = plt.figure()
+    fig.subplots_adjust(top=0.5, bottom=0.05, right=0.95)
+    fig.add_subplot(121)
+    styles_1 = ['o-', 'o--']
+    styles_2 = ['v-', 'v--']
+    epoch_axis = 0
+    for i, key in enumerate(keys):
+        if key == 'epoch':
+            epoch_axis = i
+            values[:, epoch_axis] += 1
+            break
+    for i, key in enumerate(keys):
+        if key.find('loss_model1') >= 0:  # loss
+            print(values[:, i])
+            if (key == 'loss_model1'):
+            	label = 'Training - Resenet 50' 
+            else: 
+            	label = 'Validation - Resenet 50'
+            plt.plot(values[:, epoch_axis], values[:, i], styles_1[0], label=label, linewidth=2.0)
+        elif key.find('loss_model2') >= 0:  # loss
+            print(values[:, i])
+            if (key == 'loss_model2'):
+            	label = 'Training - Resenet 101' 
+            else: 
+            	label = 'Validation - Resenet 101'
+            plt.plot(values[:, epoch_axis], values[:, i], styles_2[1], label=label, linewidth=2.0)
+    plt.annotate(
+        'Best Epoch Resnet50',
+        xy=(16,0.0522521154), arrowprops=dict(arrowstyle='->'), xytext=(10, 1.5))
+    
+    plt.annotate(
+        'Best Epoch Resnet101',
+        xy=(6,0.0129342183), arrowprops=dict(arrowstyle='->'), xytext=(6, 1))
+
+    plt.legend()
+    plt.grid(which='both', linestyle='--')
+    
+    plt.title('Loss Function')
+
+    fig.add_subplot(122)
+    for i, key in enumerate(keys):
+        
+        if key.find('acc_model1') >= 0:  # acc
+        	if (key == 'train_acc_model1'):
+        		label = 'Training - Resnet 50'
+        	else:
+        		label = 'Validation - Resnet 50'
+        	plt.plot(values[:, epoch_axis], values[:, i], styles_1[0], label=label, linewidth=2.0)
+        elif key.find('acc_model2') >= 0:  # acc
+            if (key == 'train_acc_model2'):
+                label = 'Training - Resnet 100'
+            else:
+                label = 'Validation - Resnet 100'
+            plt.plot(values[:, epoch_axis], values[:, i],  styles_2[1], label=label, linewidth=2.0)
+            
+    plt.annotate(
+        'Best Epoch Resnet50',
+        xy=(16,0.998), arrowprops=dict(arrowstyle='->'), xytext=(10, 0.7))
+    
+    plt.annotate(
+        'Best Epoch Resnet101',
+        xy=(6,0.99975), arrowprops=dict(arrowstyle='->'), xytext=(6, 0.8))
+    
+    plt.legend()
+    plt.grid(which='both', linestyle='--')
+    plt.title('Accuracy')
+
+    # fig.savefig('result/log.png')
+    if show:
+        plt.show()
+
 
 def combine_images(generated_images):
     num = generated_images.shape[0]
@@ -198,29 +287,32 @@ def plot_bar_chart(model, inputs, title):
     #plt.show()
 
 if __name__=="__main__":
-    #plot_log("results/R/logs/log_results_Mon Feb 25 20:01:50 2019.csv")
+    plot_log_two_models("results/log_results_two.csv")
     from DataUtils import DataUtils
     import utils
     import torch
     from PIL import Image
-    images_name = ["../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/27/TestIm27_10.png",
-        "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/Phase41_new_10.png",
-        "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/TestIm41_11.png", 
-                  "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/TestIm41_11.png"]
+    
+    #images_name = ["../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/27/TestIm27_10.png",
+    #    "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/Phase41_new_10.png",
+    #    "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/TestIm41_11.png", 
+    #              "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/41/TestIm41_11.png"]
 
     #image_name = "../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class/42/TestIm42_8.png"
     #image = Image.open(image_name)
     
-    model_names = ["results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt", 
-                      "results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt",
-                      "results/Resnet101/lr_0.0003118464108103618_Thu Feb 21 11:01:00 2019/epochs/epoch_3.pt"]
-    model = []
-    model.append(torch.load(model_names[0]))
-    model.append(torch.load(model_names[1]))
+    #model_names = ["results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt", 
+    #                  "results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt",
+    #                  "results/Resnet101/lr_0.0003118464108103618_Thu Feb 21 11:01:00 2019/epochs/epoch_3.pt"]
+    #model = []
+    #model.append(torch.load(model_names[0]))
+    #model.append(torch.load(model_names[1]))
     #model.append(torch.load(model_names[2]))
     
-    for image_name in images_name:
-        image = Image.open(image_name)
-        utils.plot_bar_chart(inputs=image, model=model, title = image_name)
+    #for image_name in images_name:
+    #    image = Image.open(image_name)
+    #    utils.plot_bar_chart(inputs=image, model=model, title = image_name)
     
-    plt.show()
+    #plt.show()
+    
+    
