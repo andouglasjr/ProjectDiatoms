@@ -65,18 +65,18 @@ def train(args, device):
         #model_2 = PickModel("Resnet101", num_classes = int(args.classes_training)).get_model()            
         model_1 = torch.load("results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt")
         model_2 = torch.load("results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt")
-        models = []
-        models.append(model_1)
-        models.append(model_2)
-        #ModelUtils.set_parameter_requires_grad(model_1.module, True, 20)
-        #ModelUtils.set_parameter_requires_grad(model_2.module, True, 20)
+        #models = []
+        #models.append(model_1)
+        #models.append(model_2)
+        ModelUtils.set_parameter_requires_grad(model_1.module, True, 20)
+        ModelUtils.set_parameter_requires_grad(model_2.module, True, 20)
         
         #test(args, device, model_1)
         #test(args, device, model_2)
                              
-        #train_model = Ensemble(model_1.module, model_2.module)
+        train_model = Ensemble(model_1.module, model_2.module)
         #print(train_model)
-        best_model = TrainingClass(model_1, dataset, args).fit_ensemble(models)
+        best_model = TrainingClass(model_1, dataset, args).train()
         
         #ModelUtils.save_model(best_model, folder_best_result)
 
