@@ -27,7 +27,8 @@ class DiatomsDatasetAug(data.Dataset):
         self.number_classes = 50
         
         if args is not None:
-            self.number_by_class = int(args.images_per_class)
+            if(self.root != '../data/Dataset_5/Diatom50NEW_generated/test_diatoms_3_class'):
+                self.number_by_class = int(args.images_per_class)
             self.number_classes = int(args.classes_training)
         #shape vector
         self.shape = [0,0,0,0,0,0,0,0,0,0,0,0,3,0,0,0,0,0,1,3,1,0,1,1,1,2,2,4,5,1,1,1,1,1,1,1,1,1,2,0,2,2,5,5,1,1,1,2,5,1]

@@ -3,9 +3,18 @@ import os
 np.set_printoptions(threshold=np.nan)
 
 
-
 class DataLogger:
+    
+    __instance = None
+    
+    @staticmethod
+    def getInstance(args):
+        if DataLogger.__instance == None:
+            DataLogger(args)
+        return DataLogger.__instance
+    
     def __init__(self, args):
+        DataLogger.__instance = self
         folder = args.save_dir+'/'+str(args.network_name[0])+'/logs'
         if not os.path.exists(folder):
             os.makedirs(folder)

@@ -8,7 +8,9 @@
 
 export CUDA_VISIBLE_DEVICES=$CudaDevices
 
-python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir --new_lr --lr $LearningRate
+python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir --new_lr --lr $LearningRate --momentum $Momentum --step_size $Step_size --gamma $Gamma
+
+#python main.py --network_name $NetworkName --epochs $Epochs --batch_size $BatchSize --images_per_class $ImagesperClass --classes_training $ClassesTrain --data_dir $DataDir --range 10 --exponential_range -3 -5
 
 
 

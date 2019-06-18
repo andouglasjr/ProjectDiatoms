@@ -19,6 +19,7 @@ from FullyConnectedCapsuled import FullyConnectedCapsuled
 import pandas as pd
 from DataUtils import DataUtils
 from sklearn.metrics import accuracy_score
+import utils
 
 class ModelClass():
     
@@ -174,6 +175,24 @@ class ModelClass():
             self.model_ft = DiatomsNetwork(num_classes)
             
             input_size = 244
+                    
+        elif model_name == "SqueezeNet":
+            print("[!] SqueezeNet model")
+            self.model_ft = models.squeezenet1_1(pretrained=use_pretrained)
+            
+            #for name, params in self.model_ft.named_children():
+            #    print(name)
+            
+            in_ftrs = self.model_ft.classifier[1].in_channels
+            #print(in_ftrs)
+            out_ftrs = self.model_ft.classifier[1].out_channels
+            #print(out_ftrs)
+            features = list(self.model_ft.classifier.children())
+            features[1] = nn.Conv2d(in_ftrs, num_classes,1,1)
+            features[3] = nn.AvgPool2d(13,stride=1)
+            
+            self.model_ft.classifier = nn.Sequential(*features)
+            self.model_ft.num_classes = num_classes
             
         else:
             print("[x] Invalid model name, exiting!")
@@ -258,7 +277,7 @@ class ModelClass():
             self.best_loss = loss
             self.cont_to_stop = 0   
             
-        if(self.cont_to_stop == 3):
+        if(self.cont_to_stop == 2):
             self.log.log('Loss is not falling down! Stopping this training...', 'l')
             return True
         return False
@@ -278,8 +297,16 @@ class ModelClass():
             all_features, all_labels = [], []
         
         logfile = open(args.save_dir+'/'+str(args.network_name[0])+'/logs/log_results_'+str(args.time_training)+'.csv', 'w')
-        logwriter = csv.DictWriter(logfile, fieldnames=['epoch', 'loss', 'val_loss', 'val_acc'])
+        logwriter = csv.DictWriter(logfile, fieldnames=['x', 'train_loss', 'val_loss', 'train_acc','val_acc'])
+        x_log = []
+        train_loss_log = []
+        val_loss_log = []
+        train_acc_log = []
+        val_acc_log = []
         logwriter.writeheader()
+        
+        global plotter
+        plotter = utils.VisdomLinePlotter(env_name='Plot')
         
         #Get parameters of training
         lr = params['lr']
@@ -294,19 +321,13 @@ class ModelClass():
         
         lr_batch = []
         loss_batch = []
+        plot_x_train = 0
 
         #Setting parameters of training
-        if(loss_function == 'cross_entropy' or loss_function=='softmax'):
-            criterion = self.get_criterion(loss_function)
-            optimizer = self.get_optimization(model, lr, momentum)
-            scheduler = self.get_scheduler(optimizer, step_size, gamma)
-        elif(loss_function == 'center_loss'):
-            center_loss = CenterLoss(num_classes=self.num_classes, feat_dim=3, use_gpu=True)
-            criterion = self.get_criterion('cross_entropy')
-            params = list(model.parameters()) + list(center_loss.parameters())
-            optimizer = torch.optim.SGD(params, lr=lr) # here lr is the overall learning rate
-            scheduler = self.get_scheduler(optimizer, step_size, gamma)
-            
+        criterion = self.get_criterion(loss_function)
+        optimizer = self.get_optimization(model, lr, momentum)
+        scheduler = self.get_scheduler(optimizer, step_size, gamma)
+        
         #Using more than one GPU
         ######################################
         if torch.cuda.device_count() > 1:
@@ -331,7 +352,7 @@ class ModelClass():
             # Each epoch has a training and validation phase
             
 
-            for phase in ['train', 'val']  :
+            for phase in ['train', 'val'] :
                 if phase ==  self.folder_names[0]:
                     scheduler.step()
                     model.train()  # Set model to training mode
@@ -347,7 +368,9 @@ class ModelClass():
                 training_loss = 0.0
                 running_loss = 0.0
                 print_batch = 1
+                dataset_size = 0
                 # Iterate over data.
+                n_batchs = len(data.images_dataset)/args.batch_size
                 for i, sample in enumerate(dataloaders[phase]):
                     bar.update(i+1)
                     #print(sample)
@@ -358,42 +381,63 @@ class ModelClass():
                     
                     # zero the parameter gradients
                     optimizer.zero_grad()
-                    alpha = 0.5
-                    lr_cent = lr_center_loss
-
+                    
                     # forward
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs= model(inputs)
-                        
+                        #print(outputs.size(), labels.size(), inputs.size())
                         _, preds = torch.max(outputs, 1)
-                        if(loss_function == 'cross_entropy' or loss_function=='softmax'):
-                            loss = criterion(outputs, labels) 
-                        elif(loss_function == 'center_loss'):
-                            loss = center_loss(outputs, labels)*alpha + criterion(outputs, labels)  
-                            optimizer.zero_grad()
+                        loss = criterion(outputs, labels) 
+                        optimizer.zero_grad()
 
                         # backward + optimize only if in training phase
                         if phase ==  'train':
                             loss.backward()
-                            if(loss_function == 'center_loss'):
-                                for param in center_loss.parameters():
-                                    param.grad.data *= (lr_cent/(alpha*lr))
                             optimizer.step()
 
                     # statistics
                     running_loss += loss.item() * inputs.size(0)
                     running_corrects += torch.sum(preds == labels.data)
-                
-                dataset_size = len(data.images_dataset)
-                if phase=='train':
-                    dataset_size = dataset_size*0.8
-                else:
-                    dataset_size = dataset_size*0.2
+                    
+                    #batch_loss = running_loss / inputs.
+                    
+                    dataset_size += inputs.size(0)
+                    plot_x_train += 1/n_batchs
+                    
+                    _loss = running_loss/dataset_size
+                    _acc = running_corrects.double()/dataset_size
+                    
+                    if phase == 'train':
+                        plotter.plot('Loss', 'Train', 'Loss Training', plot_x_train, _loss)
+                        plotter.plot('Accuracy', 'Train', 'Accuracy Training', plot_x_train, _acc)
+                        x_log.append(plot_x_train)
+                        train_loss_log.append(_loss)
+                        val_loss_log.append(0)
+                        train_acc_log.append(_acc)
+                        val_acc_log.append(0)
+                        #logwriter.writerow(dict(x=plot_x_train, train_loss=_loss, val_loss=0, train_acc=_acc.item(), val_acc = 0))
+                    else:
+                        plotter.plot('Loss', 'Validation', 'Loss Training', plot_x_train, _loss)
+                        plotter.plot('Accuracy', 'Validation', 'Accuracy Training', plot_x_train, _acc)
+                        #logwriter.writerow(dict(x=plot_x_train, train_loss=0, val_loss=_loss, train_acc=0, val_acc = _acc.item()))
+                        x_log.append(plot_x_train)
+                        train_loss_log.append(0)
+                        val_loss_log.append(_loss)
+                        train_acc_log.append(0)
+                        val_acc_log.append(_acc)
+                    #print(running_loss / dataset_size)
+                #dataset_size = len(data.images_dataset)
+                #if phase=='train':
+                #    dataset_size = dataset_size*0.8
+                #else:
+                #    dataset_size = dataset_size*0.2
                 bar.finish()
                 
                 epoch_loss = running_loss / dataset_size
                 epoch_acc = running_corrects.double() / dataset_size
+                #plot_x = 0
+                #plotter.scatterplot("Loss Training", epoch, epoch_loss)
                                     
                 content = '{} {:.4f} {:.4f}'.format(epoch, epoch_loss, epoch_acc)
                 close = False
@@ -408,8 +452,9 @@ class ModelClass():
                     time_elapsed_epoch = time.time() - since_epoch
                     c_print = c_print + ', val_loss = {:.4f}, val_acc = {:.4f}, Time: {:.0f}m {:.0f}s'.format(epoch_loss, epoch_acc, time_elapsed_epoch // 60, time_elapsed_epoch % 60)
                     self.log.log(c_print, 'v')
-                    logwriter.writerow(dict(epoch=epoch, loss=train_loss,
-                                    val_loss=epoch_loss, val_acc=epoch_acc.item()))
+                    #logwriter.writerow(dict(x=plot_x_train, train_loss=0, val_loss=_loss, train_acc=0, val_acc = _acc.item()))
+                    logwriter.writerow(dict(x=x_log, train_loss=train_loss_log, val_loss=val_loss_log, train_acc=train_acc_log, val_acc = val_acc_log))
+                    
   
                 # deep copy the model
                 if phase ==  'val' and epoch_acc > best_acc:
@@ -463,6 +508,7 @@ class ModelClass():
         import csv        
         was_training = model.training
         model.eval()
+        
         correct = torch.zeros([1, 51], dtype=torch.int32, device = device)
         incorrect = torch.zeros([1, 51], dtype=torch.int32, device = device)
         results = torch.zeros([51, 51], dtype=torch.int32, device = device)
@@ -521,8 +567,8 @@ class ModelClass():
                 #if(int(args.classes_training) == 3):            
                     preds = [int(vector_transform_old[l.item()]) for l in preds]
                 else:
-                    preds = [int(vector_transform_old[l.item()]) for l in preds]
-                    #preds = [(p.item()+1) for p in preds]
+                    #preds = [int(vector_transform_old[l.item()]) for l in preds]
+                    preds = [(p.item()+1) for p in preds]
                     #preds = [int(p.item()) for p in preds]
                     
                 #preds = [int(class_names[l.item()]) + 1 for l in preds]
@@ -536,16 +582,11 @@ class ModelClass():
                 #df.to_excel(writer, 'Sheet1')
                 #writer.save()
                     
-                #log.log("F1 SOCRE:", 'l')
-                #log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
-                #log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
-                #log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
-                #log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
                 
                 y_pred = np.concatenate((y_pred,preds),0)
-                print(y_pred)
+                #print(y_pred)
                 y_test = np.concatenate((y_test,labels),0)
-                print(y_test)
+                #print(y_test)
                                                
                 #if(i>0):
                 #    correct_class = self.update_correct_class(correct_class_old, correct_class)
@@ -555,9 +596,15 @@ class ModelClass():
             if not older_model:
                 y_test = [l + 1 for l in y_test]
                 #y_pred = [p + 1 for p in y_pred]
-                
+            
+            log.log("F1 SOCRE:", 'l')
+            log.log("Macro: {}".format(f1_score(y_test, y_pred, average='macro')), 'v')
+            log.log("Micro: {}".format(f1_score(y_test, y_pred, average='micro')), 'v')
+            log.log("Weighted: {}".format(f1_score(y_test, y_pred, average='weighted')), 'v')
+            log.log("For all analyzed classes: {}".format(f1_score(y_test, y_pred, average=None)), 'v')
+            
             class_names = sorted(np.array(list(set(np.array(y_pred)))))
-            data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
+            #data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
             labels = np.array(y_test, dtype=int)
             preds = np.array(y_pred, dtype = int)
             
@@ -610,6 +657,9 @@ class ModelClass():
                          50, 6, 7, 8, 9]
         
         vector_transform_old = [27, 41, 42]
+        y_pred = []
+        y_test = []
+        correct_class = []
         
         
 
@@ -633,11 +683,13 @@ class ModelClass():
 
                 m = nn.Softmax()
                 outputs = model[0](inputs)
-                out = m(outputs)
+                out1 = m(outputs)
                 
                 outputs = model[1](inputs)
-                out = torch.add(out, m(outputs))
-                
+                out2 = m(outputs)
+                out = torch.add(out1, out2)
+  
+                #print(out, out1, out2, filename)
                 #outputs = model[2](inputs)
                 #out = torch.add(out, m(outputs))
                 
@@ -656,42 +708,144 @@ class ModelClass():
                 #else:
                 #preds = [(p.item()+1) for p in preds]
                 #print(preds)
+                y_pred = np.concatenate((y_pred,preds),0)
+                #print(y_pred)
+                y_test = np.concatenate((y_test,labels),0)
+                #print(y_test)
+                                               
+                #if(i>0):
+                #    correct_class = self.update_correct_class(correct_class_old, correct_class)
+                #correct_class_old = correct_class
                 
-                df = pd.DataFrame({'Labels' : labels, 'Predictions' : preds, 'Filename': filename})
-                #print(df)
-                writer = pd.ExcelWriter('report.xlsx')
-                df.to_excel(writer, 'Sheet1')
-                writer.save()
-                    
-                log.log("F1 SOCRE:", 'l')
-                log.log("Macro: {}".format(f1_score(labels, preds, average='macro')), 'v')
-                log.log("Micro: {}".format(f1_score(labels, preds, average='micro')), 'v')
-                log.log("Weighted: {}".format(f1_score(labels, preds, average='weighted')), 'v')
-                log.log("For all analyzed classes: {}".format(f1_score(labels, preds, average=None)), 'v')
                 
-                                  
-                for k in range(len(labels)):
-                    
-                    if(preds[k] == labels[k]):
-                        results[preds[k],preds[k]] +=1
-                        correct[0,preds[k]] += 1
-                        cont_correct += 1
-                    else:
-                        results[preds[k],labels[k]] +=1
-                        incorrect[0,preds[k]] += 1
-                        image_incorrect.append({'class' : preds[k],
-                                                'correct_class': labels[k], 
-                                                'image': inputs.data[k],
-                                                'filename' : filename[k]})
-                        #print(preds[k], labels[k], filename[k])
-                        cont_incorrect += 1
-                        
-                if(i>0):
-                    correct_class = self.update_correct_class(correct_class_old, correct_class)
-                correct_class_old = correct_class
+            if not older_model:
+                y_test = [l + 1 for l in y_test]
+                y_pred = [p + 1 for p in y_pred]
+            
+            log.log("F1 SOCRE:", 'l')
+            log.log("Macro: {}".format(f1_score(y_test, y_pred, average='macro')), 'v')
+            log.log("Micro: {}".format(f1_score(y_test, y_pred, average='micro')), 'v')
+            log.log("Weighted: {}".format(f1_score(y_test, y_pred, average='weighted')), 'v')
+            log.log("For all analyzed classes: {}".format(f1_score(y_test, y_pred, average=None)), 'v')
+            
+            class_names = sorted(np.array(list(set(np.array(y_pred)))))
+            data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
+            accuracy = accuracy_score(y_test, y_pred)
+            print("Accuracy: %.2f%%" % (accuracy * 100.0))
+            
+            
+            
+            labels = np.array(y_test, dtype=int)
+            preds = np.array(y_pred, dtype = int)
+            
+            for k in range(len(labels)):
+
+                if(preds[k] == labels[k]):
+                    results[preds[k],preds[k]] +=1
+                    correct[0,preds[k]] += 1
+                    cont_correct += 1
+                else:
+                    results[preds[k],labels[k]] +=1
+                    incorrect[0,preds[k]] += 1
+                    #image_incorrect.append({'class' : preds[k],
+                    #                        'correct_class': labels[k], 
+                    #                        'image': inputs.data[k],
+                    #                        'filename' : filename[k]})
+                    #print(preds[k], labels[k], filename[k])
+                    cont_incorrect += 1
+
 
         return results, cont_correct, cont_incorrect, image_incorrect, correct_class
+    
+    def test_models_votting(model, dataloaders, folder_name, data, device, log, args):
+        import csv        
+        #was_training = model[0].training
+        #model[0].eval()
+        image_incorrect = [{}]
+        older_model = args.older_model
+        
+        cont_correct = 0
+        cont_incorrect = 0
+        correct_class = 0.
+        
+        class_names = data.get_image_datasets().classes
 
+        vector_transform = [1 ,10,11,12,13,
+                         14,15,16,17,18,
+                         19,2 ,20,21,22,
+                         23,24,25,26,27,
+                         28,29,3 ,30,31,
+                         32,33,34,35,36,
+                         37,38,39,4 ,40,
+                         41,42,43,44,45,
+                         46,47,48,49,5 ,
+                         50, 6, 7, 8, 9]
+        
+        vector_transform_old = [27, 41, 42]
+        y_pred = []
+        y_test = []
+        correct_class = []
+        
+        
+
+        with torch.no_grad():      
+            for i, sample in enumerate(dataloaders['test']):
+                
+                if older_model:
+                    (inputs, labels),(filename,_) = sample
+                    labels = [int(class_names[l.item()]) for l in labels]
+                else:
+                    inputs, labels, filename, shape = sample
+                    inputs = inputs.repeat(1,3,1,1)
+                    #labels = [(l.item()+1) for l in labels]
+                
+                print(labels)
+                #inputs = inputs.to(self.device)
+                #labels = labels.to(self.device)               
+                
+                correct_class = np.array(list(set(np.array(labels))))
+                print(correct_class)
+                
+                model_1 = model[0]
+                model_2 = model[1]
+
+                from Ensemble import Ensemble 
+                model_ensemble = Ensemble(model_1, model_2)
+                out = model_ensemble(inputs)
+                print(out)
+  
+                #print(out, out1, out2, filename)
+                #outputs = model[2](inputs)
+                #out = torch.add(out, m(outputs))
+                
+                _, preds = torch.max(out, 1)
+                
+                
+                
+                if older_model:                
+                    preds = [int(vector_transform_old[l.item()]) for l in preds]
+                else:
+
+                    preds = [(p.item()) for p in preds]
+
+                y_pred = np.concatenate((y_pred,preds),0)
+                y_test = np.concatenate((y_test,labels),0)
+
+                
+            if not older_model:
+                y_test = [l + 1 for l in y_test]
+                y_pred = [p + 1 for p in y_pred]
+            
+            log.log("F1 SOCRE:", 'l')
+            log.log("Macro: {}".format(f1_score(y_test, y_pred, average='macro')), 'v')
+            log.log("Micro: {}".format(f1_score(y_test, y_pred, average='micro')), 'v')
+            log.log("Weighted: {}".format(f1_score(y_test, y_pred, average='weighted')), 'v')
+            log.log("For all analyzed classes: {}".format(f1_score(y_test, y_pred, average=None)), 'v')
+            
+            class_names = sorted(np.array(list(set(np.array(y_pred)))))
+            data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
+            accuracy = accuracy_score(y_test, y_pred)
+            print("Accuracy: %.2f%%" % (accuracy * 100.0))
     
     def get_features_layer(model, data, device):
         if model == None:

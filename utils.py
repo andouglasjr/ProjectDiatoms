@@ -3,7 +3,38 @@ import numpy as np
 from matplotlib import pyplot as plt
 import torch
 from torchvision import transforms
+import random
+import os
+from visdom import Visdom
 
+class VisdomLinePlotter(object):
+    """Plots to Visdom"""
+    def __init__(self, env_name='main'):
+        self.viz = Visdom()
+        self.env = env_name
+        self.plots = {}
+        self.scatter = {}
+        
+    def plot(self, var_name, split_name, title_name, x, y):
+        if var_name not in self.plots:
+            self.plots[var_name] = self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), env=self.env, opts=dict(
+                legend=[split_name],
+                title=title_name,
+                xlabel='Epochs',
+                ylabel=var_name
+            ))
+            
+                
+        else:
+            self.viz.line(X=np.array([x]), Y=np.array([y]), env=self.env, win=self.plots[var_name], name=split_name, update = 'append')
+    
+    def scatterplot(self, var_name, x, y):
+        if var_name not in self.plots:
+            self.scatter[var_name] = self.viz.scatter(X=[np.array([x,x]),np.array([y,y])], env=self.env)
+        else:
+            self.viz.scatter(X=[np.array([x,x]),np.array([y,y])], win=self.scatter[var_name], update = 'append')
+      
+    
 def plot_log(filename, show=True):
     # load data
     keys = []
@@ -44,7 +75,7 @@ def plot_log(filename, show=True):
     plt.grid()
     plt.title('Loss Function')
 
-    fig.add_subplot(122)
+    fig.add_subplot(111)
     for i, key in enumerate(keys):
         if key.find('acc') >= 0:  # acc
         	if (key == 'train_acc'):
@@ -80,7 +111,7 @@ def plot_log_two_models(filename, show=True):
 
     fig = plt.figure()
     fig.subplots_adjust(top=0.5, bottom=0.05, right=0.95)
-    fig.add_subplot(121)
+    fig.add_subplot(211)
     styles_1 = ['o-', 'o--']
     styles_2 = ['v-', 'v--']
     epoch_axis = 0
@@ -117,7 +148,7 @@ def plot_log_two_models(filename, show=True):
     
     plt.title('Loss Function')
 
-    fig.add_subplot(122)
+    fig.add_subplot(212)
     for i, key in enumerate(keys):
         
         if key.find('acc_model1') >= 0:  # acc
@@ -176,6 +207,22 @@ def get_learning_rate(args, network_name):
             return 8.832537199285954e-04
         elif(network_name == "Densenet169"):
             return 2.6909353460670058e-05
+
+def create_folders_to_results(args):
+    ################################################################################################################
+    #Folder names to save the log and model
+    ################################################################################################################
+    localtime = args.time_training
+    lr = args.lr
+    folder_save_results_epoch = args.save_dir+'/'+args.network_name+'/lr_'+str(lr)+'_'+str(localtime)+'/epochs'
+
+    if not os.path.exists(folder_save_results_epoch):
+        os.makedirs(folder_save_results_epoch)
+
+    folder_best_result = args.save_dir + '/'+args.network_name+'/lr_'+ str(lr)+'_'+str(localtime)+'/best_result.pt'
+    return folder_save_results_epoch, folder_best_result
+
+
 
 def plot_confusion_matrix(cm, classes,
                           normalize=False,
@@ -287,7 +334,7 @@ def plot_bar_chart(model, inputs, title):
     #plt.show()
 
 if __name__=="__main__":
-    plot_log_two_models("results/log_results_two.csv")
+    plot_log("results/S/logs/log_results_Thu Jun 13 17:36:14 2019.csv")
     from DataUtils import DataUtils
     import utils
     import torch

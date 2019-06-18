@@ -85,40 +85,59 @@ class ArgumentsParser():
         parser.add_argument('--time_training', 
                             default=self.localtime, 
                             help="start time training")
+        
+        parser.add_argument('--momentum', 
+                            default=0.9, 
+                            help="momentum value")
+        
+        parser.add_argument('--step_size', 
+                            default=5, 
+                            help="step size value")
+        
+        parser.add_argument('--gamma', 
+                            default=0.1, 
+                            help="gamma value")
+        
 
         self.args = parser.parse_args()
+        self.train = True
+        if(self.args.testing):
+            self.train = False
         self.print_args()
     
     def get_args(self):
         return self.args
     
     def print_args(self):
-        ts = os.get_terminal_size()
-        print(''.center(ts.columns, '-'))
-        print("Setup Training - {}".format(self.localtime).center(ts.columns, ' '))
-        print(''.center(ts.columns, '-'))
-        print("     {0:<10}".format("Network Name:.................." + self.args.network_name))
-        print("     {0:<10}".format("Epochs:........................" + str(self.args.epochs)))
-        print("     {0:<10}".format("Batch Size:...................." + str(self.args.batch_size)))
-        print("     {0:<10}".format("Loss Function:................." + self.args.loss_function))
-        print("     {0:<10}".format("Data Directory:................" + self.args.data_dir))
-        print("     {0:<10}".format("Images per Class:.............." + str(self.args.images_per_class)))
-        print("     {0:<10}".format("Number of Classes:............." + str(self.args.classes_training)))
-        print(''.center(ts.columns, '-'))
-        print("Activated Flags".format(self.localtime).center(ts.columns, ' '))
-        print(''.center(ts.columns, '-').center(ts.columns, ' '))
-        content = ""
-        if(self.args.new_lr):
-            content+="new_lr - "
-        if(self.args.older_model):
-            content+="older_model - "
-        if(self.args.new_aug):
-            content+="new_aug - "
-        if(self.args.testing):
-            content+="testing"
-        if content is "":
-            print("Nothing".center(ts.columns, ' '))
+        if(self.train):
+            ts = os.get_terminal_size()
+            print(''.center(ts.columns, '-'))
+            print("Setup Training - {}".format(self.localtime).center(ts.columns, ' '))
+            print(''.center(ts.columns, '-'))
+            print("     {0:<10}".format("Network Name:.................." + self.args.network_name))
+            print("     {0:<10}".format("Epochs:........................" + str(self.args.epochs)))
+            print("     {0:<10}".format("Batch Size:...................." + str(self.args.batch_size)))
+            print("     {0:<10}".format("Loss Function:................." + self.args.loss_function))
+            print("     {0:<10}".format("Data Directory:................" + self.args.data_dir))
+            print("     {0:<10}".format("Images per Class:.............." + str(self.args.images_per_class)))
+            print("     {0:<10}".format("Number of Classes:............." + str(self.args.classes_training)))
+            print(''.center(ts.columns, '-'))
+            print("Activated Flags".format(self.localtime).center(ts.columns, ' '))
+            print(''.center(ts.columns, '-').center(ts.columns, ' '))
+            content = ""
+            if(self.args.new_lr):
+                content+="new_lr - "
+            if(self.args.older_model):
+                content+="older_model - "
+            if(self.args.new_aug):
+                content+="new_aug - "
+            if(self.args.testing):
+                content+="testing"
+            if content is "":
+                print("Nothing".center(ts.columns, ' '))
+            else:
+                print("{}".format(content).center(ts.columns, ' '))
+            print(''.center(ts.columns, '-'))
         else:
-            print("{}".format(content).center(ts.columns, ' '))
-        print(''.center(ts.columns, '-'))
+            print("Testing model...")
         
