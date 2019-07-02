@@ -48,7 +48,7 @@ class TestingClass():
         self.log.log("For all analyzed classes: {}".format(f1_score(y_test, y_pred, average=None)), 'v')
             
         class_names = sorted(np.array(list(set(np.array(y_pred)))))
-        self.data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names)
+        self.data.confusion_matrix_skt(y_test = y_test, y_pred = y_pred, class_names=class_names, noPrint = False)
         accuracy = accuracy_score(y_test, y_pred)
         self.log.log("Accuracy: {}".format(accuracy * 100.0), 'v')
         

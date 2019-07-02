@@ -223,7 +223,7 @@ class DataUtils():
         # Plot non-normalized confusion matrix
         #plt.figure()
         self.plot_confusion_matrix(cnf_matrix, classes=class_names,
-                              title='Confusion matrix')
+                              title='Confusion matrix', noPrint = noPrint)
 
         # Plot normalized confusion matrix
         #plt.figure()

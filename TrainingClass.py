@@ -25,11 +25,6 @@ class TrainingClass():
         #Log variables
         self.logfile = open(args.save_dir+'/'+str(args.network_name[0])+'/logs/log_results_'+str(args.time_training)+'.csv', 'w')
         self.logwriter = csv.DictWriter(self.logfile, fieldnames=['x', 'train_loss', 'val_loss', 'train_acc','val_acc'])
-        self.x_log = []
-        self.train_loss_log = []
-        self.val_loss_log = []
-        self.train_acc_log = []
-        self.val_acc_log = []
         self.logwriter.writeheader()
         
         #Set parameters
@@ -106,6 +101,12 @@ class TrainingClass():
         self.data.open_file_data(self.args.save_dir, self.net_name, self.lr, self.args)
         
         for epoch in range(self.num_epochs):
+            self.x_log = []
+            self.train_loss_log = []
+            self.val_loss_log = []
+            self.train_acc_log = []
+            self.val_acc_log = []
+            
             folder_epoch = self.args.save_dir+'/'+self.net_name+'/lr_'+str(self.lr)+'_'+str(self.args.time_training)+'/epochs/epoch_'+str(epoch)+'.pt'
             since_epoch = time.time()
             c_print = ''
@@ -163,13 +164,13 @@ class TrainingClass():
                     dataset_size += inputs.size(0)
                     plot_x_train += 1/n_batchs
                     
-                    _loss = running_loss/dataset_size
-                    _acc = running_corrects.double()/dataset_size
+                    _loss = round(running_loss/dataset_size,4)
+                    _acc = round((running_corrects.double()/dataset_size).item(),4)
                     
                     if phase == 'train':
                         plotter.plot('Loss', 'Train', 'Loss Training', plot_x_train, _loss)
                         plotter.plot('Accuracy', 'Train', 'Accuracy Training', plot_x_train, _acc)
-                        self.x_log.append(plot_x_train)
+                        self.x_log.append(round(plot_x_train,4))
                         self.train_loss_log.append(_loss)
                         self.val_loss_log.append(0)
                         self.train_acc_log.append(_acc)
@@ -179,7 +180,7 @@ class TrainingClass():
                         plotter.plot('Loss', 'Validation', 'Loss Training', plot_x_train, _loss)
                         plotter.plot('Accuracy', 'Validation', 'Accuracy Training', plot_x_train, _acc)
                         #logwriter.writerow(dict(x=plot_x_train, train_loss=0, val_loss=_loss, train_acc=0, val_acc = _acc.item()))
-                        self.x_log.append(plot_x_train)
+                        self.x_log.append(round(plot_x_train,4))
                         self.train_loss_log.append(0)
                         self.val_loss_log.append(_loss)
                         self.train_acc_log.append(0)

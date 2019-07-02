@@ -62,25 +62,39 @@ def train(args, device):
         #best_model = model_ft.train_model(model, dataloaders, params, dataset, args)
         #model_ft.save_model(best_model, folder_best_result)
         #model_1 = PickModel("Resnet50", num_classes = int(args.classes_training)).get_model()
-        #model_2 = PickModel("Resnet101", num_classes = int(args.classes_training)).get_model()            
-        model_1 = torch.load("results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt")
-        model_2 = torch.load("results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt")
+        #model_2 = PickModel("Resnet101", num_classes = int(args.classes_training)).get_model()
+        #model_0 = torch.load("results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt") #Resnet50
+        #model_1 = torch.load("results/SqueezeNet/lr_0.0001_Wed Jun 19 12:06:52 2019/epochs/epoch_14.pt") #Resnet50 + Resnet101
+        #model_2 = torch.load("results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt") #Resnet101
+        #model_3 = torch.load("results/SqueezeNet/lr_0.0001_Wed Jun 19 19:48:42 2019/epochs/epoch_8.pt") #SqueezeNet
+        #model_4 = torch.load("results/Densenet169/lr_0.0001_Wed Jun 19 23:54:25 2019/epochs/epoch_10.pt") #Densenet169
+        #model_5 = torch.load("results/Densenet169/lr_0.0001_Thu Jun 20 08:29:45 2019/epochs/epoch_12.pt") #SqueezeNet + Densenet
+        #model_6 = torch.load("results/Densenet121/lr_0.0001_Thu Jun 20 12:15:33 2019/epochs/epoch_17.pt") #Densenet121
+        
+        #model_1 = model_0
+        #model_2 = model_6
+        #model_3 = model_4
         #models = []
         #models.append(model_1)
         #models.append(model_2)
-        ModelUtils.set_parameter_requires_grad(model_1.module, True, 20)
-        ModelUtils.set_parameter_requires_grad(model_2.module, True, 20)
-        
+        #ModelUtils.set_parameter_requires_grad(model_1.module, True, 7)
+        #ModelUtils.set_parameter_requires_grad(model_2.module, True, 7)
+        #ModelUtils.set_parameter_requires_grad(model_3.module, True, 7)
+        #test(args, device, model_0)
         #test(args, device, model_1)
         #test(args, device, model_2)
+        #test(args, device, model_3)
+        #test(args, device, model_4)
+        #test(args, device, model_5)
                              
-        train_model = Ensemble(model_1.module, model_2.module)
+        #train_model = Ensemble(model_1.module, model_2.module)
         #print(train_model)
-        best_model = TrainingClass(model_1, dataset, args).train()
+        train_model = PickModel(network_name, num_classes = int(args.classes_training)).get_model()
+        best_model = TrainingClass(train_model, dataset, args).train()
         
-        #ModelUtils.save_model(best_model, folder_best_result)
+        ModelUtils.save_model(best_model, folder_best_result)
 
-        ################################################################################################################
+        ###############################################################################################################
         #Analysis
         ################################################################################################################
         test(args, device, best_model)
@@ -104,13 +118,13 @@ def test(args, device, model):
     ##############################################################################
     #This srcipt part tests using one model pre-trained based on weights parameter
     
-    #TestingClass(model, data_test, args).test()
-    model_1 = torch.load("results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt")
-    model_2 = torch.load("results/Resnet101/lr_0.0003118464108103618_Fri Feb 22 14:07:07 2019/epochs/epoch_5.pt")
-    models = []
-    models.append(model_1)
-    models.append(model_2)
-    TestingClass(model, data_test, args).test_ensemble(models)
+    TestingClass(model, data_test, args).test()
+    #model_1 = torch.load("results/Resnet50/lr_0.0003118464108103618_Mon Feb 25 20:01:50 2019/epochs/epoch_15.pt")
+    #model_2 = torch.load("/PhD/Research/ProjectDiatoms/ProjectDiatoms/results/SqueezeNet/lr_0.0001_Wed Jun 19 19:48:42 2019/epochsepoch_5.pt")
+    #models = []
+    #models.append(model_1)
+    #models.append(model_2)
+    #TestingClass(model, data_test, args).test_ensemble(models)
     
     ##############################################################################
     
